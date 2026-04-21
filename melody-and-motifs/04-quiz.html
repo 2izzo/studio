@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Snap Quiz: Name That Transformation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --red: #c75d5d;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 20px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover:not(:disabled) { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  /* SCORE BAR */
+  .scorebar {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+    font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px;
+  }
+  .scorebar strong { color: var(--warm); font-size: 14px; font-weight: 400; }
+
+  .progress-dots { display: flex; gap: 6px; margin-bottom: 18px; }
+  .dot {
+    width: 24px; height: 6px; border-radius: 2px; background: #2a2434;
+  }
+  .dot.correct  { background: var(--green); }
+  .dot.wrong    { background: var(--red); }
+  .dot.current  { background: var(--warm); }
+
+  /* QUESTION PANEL */
+  .q-panel { text-align: center; padding: 32px 20px; }
+  .q-prompt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 12px; }
+  .q-title { font-size: 20px; color: var(--ink); margin-bottom: 22px; }
+  .play-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+  .play-btn { padding: 12px 22px; font-size: 13px; letter-spacing: 1px; }
+
+  .choices {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    margin: 20px 0;
+  }
+  @media (max-width: 700px) { .choices { grid-template-columns: repeat(2, 1fr); } }
+  .choice {
+    padding: 18px 12px; text-align: center; border: 1px solid var(--grid);
+    border-radius: 6px; background: var(--panel-2); cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit; color: var(--ink);
+  }
+  .choice:hover:not(:disabled) { border-color: var(--warm); color: var(--warm); }
+  .choice:disabled { cursor: not-allowed; }
+  .choice .name { font-size: 15px; letter-spacing: 1px; }
+  .choice .hint { font-size: 10px; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 1.5px; }
+
+  .choice.correct {
+    border-color: var(--green); background: rgba(143,185,156,0.12); color: var(--green);
+  }
+  .choice.wrong {
+    border-color: var(--red); background: rgba(199,93,93,0.12); color: var(--red);
+  }
+  .choice.reveal {
+    border-color: var(--green); color: var(--green); opacity: 0.75;
+  }
+
+  /* RESULT */
+  .result { display: none; text-align: center; padding: 32px; }
+  .result.show { display: block; }
+  .result .score-big {
+    font-size: 64px; color: var(--warm); font-weight: 400; margin: 10px 0;
+    line-height: 1;
+  }
+  .result.pass .score-big { color: var(--green); }
+  .result .blurb { color: var(--muted); font-size: 13px; max-width: 480px; margin: 10px auto 20px; line-height: 1.7; }
+  .result .actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+  .lesson-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; font-size: 12px; color: var(--muted); }
+
+  .explain {
+    margin-top: 16px; padding: 14px 18px; background: var(--panel-deep);
+    border-radius: 6px; border-left: 2px solid var(--warm);
+    font-size: 13px; color: var(--ink); line-height: 1.6;
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain em { color: var(--accent); font-style: normal; }
+  .explain strong { color: var(--warm); font-weight: 400; }
+</style>
+</head>
+<body>
+
+<nav class="lesson-nav">
+  <a href="03-melody-over-chords.html">← Prev: Melody over Chords</a>
+  <span>Lesson 4 of 4 — Snap Quiz</span>
+  <a href="index.html">Back to Module →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, var(--panel-hi), var(--panel)); border:1px solid var(--warm); border-radius:6px; padding:14px 18px; margin-bottom:20px; color:var(--warm); font-size:13px;">
+  ✓ Snap Quiz passed. <a href="index.html" style="color:var(--accent);">Back to module →</a>
+</div>
+
+<h1>~ Snap Quiz — Name That Transformation ~</h1>
+<p class="sub">Ten rounds. You hear a motif, then a transformed version of that same motif. Your job: name the move. Four options per round. Seven out of ten passes. No timer, no penalties — just your ear and the four shapes from Lesson 1.</p>
+
+<!-- Score bar -->
+<div class="scorebar">
+  <span><strong id="roundNum">0</strong> of 10</span>
+  <span><strong id="correctCount">0</strong> correct</span>
+  <span><strong id="incorrectCount">0</strong> wrong</span>
+  <span id="bestLabel">best: —</span>
+</div>
+<div class="progress-dots" id="dots"></div>
+
+<!-- Quiz panel -->
+<div class="panel q-panel" id="quizPanel">
+  <div class="q-prompt">Round <span id="roundLabel">1</span> of 10</div>
+  <div class="q-title">Which transformation did you just hear?</div>
+  <div class="play-row">
+    <button class="play-btn" id="playOrigBtn">▶ play original</button>
+    <button class="play-btn primary" id="playXformBtn">▶ play transformed</button>
+  </div>
+  <div class="choices">
+    <button class="choice" data-choice="transpose">
+      <div class="name">Transpose</div>
+      <div class="hint">same shape, moved</div>
+    </button>
+    <button class="choice" data-choice="invert">
+      <div class="name">Invert</div>
+      <div class="hint">flipped upside-down</div>
+    </button>
+    <button class="choice" data-choice="retrograde">
+      <div class="name">Retrograde</div>
+      <div class="hint">played backwards</div>
+    </button>
+    <button class="choice" data-choice="sequence">
+      <div class="name">Sequence</div>
+      <div class="hint">restated a step higher</div>
+    </button>
+  </div>
+  <div class="explain" id="explain"></div>
+  <button id="nextBtn" style="display:none; margin-top:18px;">Next round →</button>
+</div>
+
+<!-- Result panel -->
+<div class="panel result" id="resultPanel">
+  <div class="q-prompt" id="resultPrompt">— Quiz complete —</div>
+  <div class="score-big"><span id="finalCorrect">0</span> / 10</div>
+  <div class="blurb" id="resultBlurb"></div>
+  <div class="actions">
+    <button class="primary" id="retryBtn">↻ Retake</button>
+    <a href="index.html"><button>Back to module</button></a>
+  </div>
+  <button id="completeBtn" class="complete-btn" style="display:none;">Mark lesson complete →</button>
+</div>
+
+<script>
+// ============ MIDI UTIL ============
+// Work in MIDI note numbers for clean transposition/inversion math.
+// C4 = 60.
+function midi(n) { return Tone.Frequency(n).toMidi(); }
+function midiToName(m) { return Tone.Frequency(m, 'midi').toNote(); }
+
+// ============ MOTIF LIBRARY ============
+// Each motif: array of { n: noteName, d: duration in 16ths }
+// Designed to survive all four transformations while staying on-grid.
+const MOTIFS = [
+  // ascending arpeggio
+  [ {n:'C4',d:2}, {n:'E4',d:2}, {n:'G4',d:2}, {n:'C5',d:2} ],
+  // stepwise
+  [ {n:'D4',d:2}, {n:'E4',d:2}, {n:'F4',d:2}, {n:'G4',d:2}, {n:'A4',d:2} ],
+  // angular
+  [ {n:'E4',d:2}, {n:'A4',d:2}, {n:'G4',d:2}, {n:'C5',d:2} ],
+  // descending skip
+  [ {n:'G4',d:2}, {n:'E4',d:2}, {n:'D4',d:2}, {n:'C4',d:2} ],
+  // arch shape
+  [ {n:'C4',d:2}, {n:'E4',d:2}, {n:'G4',d:2}, {n:'E4',d:2}, {n:'C4',d:2} ],
+  // call-and-response seed
+  [ {n:'G4',d:2}, {n:'G4',d:2}, {n:'F4',d:2}, {n:'E4',d:2} ],
+  // wide leap
+  [ {n:'C4',d:2}, {n:'G4',d:2}, {n:'E4',d:2}, {n:'A4',d:2} ],
+  // pentatonic wisp
+  [ {n:'A4',d:2}, {n:'G4',d:2}, {n:'E4',d:2}, {n:'D4',d:2}, {n:'E4',d:2} ],
+  // bold descent
+  [ {n:'A4',d:2}, {n:'F4',d:2}, {n:'D4',d:2}, {n:'C4',d:2} ],
+  // gentle climb
+  [ {n:'C4',d:2}, {n:'D4',d:2}, {n:'E4',d:2}, {n:'G4',d:2} ]
+];
+
+// ============ TRANSFORMATIONS ============
+// Each takes a motif (array of {n,d}) and returns a new array.
+function xformTranspose(motif) {
+  // +3 or -3 semitones (minor 3rd) picked randomly
+  const shift = (Math.random() < 0.5 ? 3 : -3);
+  return motif.map(e => ({ n: midiToName(midi(e.n) + shift), d: e.d }));
+}
+function xformInvert(motif) {
+  const anchor = midi(motif[0].n);
+  return motif.map(e => {
+    const interval = midi(e.n) - anchor;
+    return { n: midiToName(anchor - interval), d: e.d };
+  });
+}
+function xformRetrograde(motif) {
+  // reverse note order but keep each note's duration with itself
+  return motif.slice().reverse();
+}
+function xformSequence(motif) {
+  // original, then a transposed copy
+  const shift = (Math.random() < 0.5 ? 2 : -2); // whole step up or down
+  const copy = motif.map(e => ({ n: midiToName(midi(e.n) + shift), d: e.d }));
+  return motif.concat(copy);
+}
+
+const XFORMS = {
+  transpose:  xformTranspose,
+  invert:     xformInvert,
+  retrograde: xformRetrograde,
+  sequence:   xformSequence
+};
+
+const EXPLAIN = {
+  transpose: {
+    good: 'Nailed it. The whole shape slid <em>intact</em> — every interval the same, just at a new pitch center. This is the most-used move in Western melody: Beethoven, Bach, and Stevie Wonder all live off of transposition.',
+    bad: (actual) => `This one was actually <strong>${actual}</strong>. Transpose preserves the whole shape — if the contour (the up-and-down pattern) was identical, that's transpose. If the contour <em>flipped</em>, that's invert.`
+  },
+  invert: {
+    good: 'Yep — an inversion. Every interval reversed direction: what went up now goes down. Bach loved this one. Listen for a familiar shape that suddenly seems to "fall" where it used to "rise".',
+    bad: (actual) => `This one was <strong>${actual}</strong>. Invert flips direction — rising becomes falling and vice-versa. If directions were preserved but the whole thing moved, it was transpose.`
+  },
+  retrograde: {
+    good: 'Ears of a jazz critic. Retrograde plays the motif <em>backwards</em> — the last note becomes the first, the first becomes the last. Rarer in common practice but beloved by Bach, Schoenberg, and film composers.',
+    bad: (actual) => `This was <strong>${actual}</strong>. Retrograde plays the motif in reverse order — the signature tell is that the <em>final note</em> matches the <em>first note</em> of the original.`
+  },
+  sequence: {
+    good: 'Caught it. A sequence is the motif stated once, then immediately again at a new pitch — one of the most powerful cliches in tonal music. If the transformed version was <em>longer</em> than the original and started with the same shape, it was almost always a sequence.',
+    bad: (actual) => `This one was <strong>${actual}</strong>. Sequences are the <em>longer</em> option — the original plus a transposed copy. If the transformed clip was about the same length as the original, it wasn't a sequence.`
+  }
+};
+
+// ============ STATE ============
+const ROUNDS = 10;
+let round = 0;
+let correct = 0;
+let wrong = 0;
+let currentOrig = null;
+let currentXformKey = null;
+let currentXformMotif = null;
+let answered = false;
+let synth = null;
+
+// ============ DOM ============
+const dotsEl = document.getElementById('dots');
+const roundLabel = document.getElementById('roundLabel');
+const roundNum = document.getElementById('roundNum');
+const correctCount = document.getElementById('correctCount');
+const incorrectCount = document.getElementById('incorrectCount');
+const quizPanel = document.getElementById('quizPanel');
+const resultPanel = document.getElementById('resultPanel');
+const explainEl = document.getElementById('explain');
+const nextBtn = document.getElementById('nextBtn');
+const completeBtn = document.getElementById('completeBtn');
+
+function renderDots() {
+  dotsEl.innerHTML = '';
+  for (let i = 0; i < ROUNDS; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    if (i < round - 1 || (i === round - 1 && answered)) {
+      d.classList.add(dots[i] || '');
+    }
+    if (i === round - 1 && !answered) d.classList.add('current');
+    dotsEl.appendChild(d);
+  }
+}
+const dots = [];
+
+// ============ PLAYBACK ============
+function ensureSynth() {
+  if (!synth) {
+    synth = new Tone.Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.01, decay: 0.12, sustain: 0.55, release: 0.3 }
+    }).toDestination();
+    synth.volume.value = -9;
+  }
+}
+
+async function playMotif(motif) {
+  await Tone.start();
+  ensureSynth();
+  Tone.Transport.stop();
+  Tone.Transport.cancel();
+  Tone.Transport.bpm.value = 96;
+  const sixteenth = Tone.Time('16n').toSeconds();
+  let t = 0;
+  motif.forEach(e => {
+    const at = t * sixteenth;
+    Tone.Transport.schedule(time => {
+      synth.triggerAttackRelease(e.n, e.d * sixteenth * 0.92, time);
+    }, at);
+    t += e.d;
+  });
+  Tone.Transport.schedule(time => Tone.Transport.stop(), t * sixteenth + 0.2);
+  Tone.Transport.start();
+}
+
+// ============ ROUND LIFECYCLE ============
+function loadBest() {
+  try {
+    const p = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {};
+    return p.quizBest || null;
+  } catch (e) { return null; }
+}
+
+function nextRound() {
+  if (round >= ROUNDS) return finish();
+  round++;
+  answered = false;
+  currentOrig = MOTIFS[Math.floor(Math.random() * MOTIFS.length)];
+  const keys = Object.keys(XFORMS);
+  currentXformKey = keys[Math.floor(Math.random() * keys.length)];
+  currentXformMotif = XFORMS[currentXformKey](currentOrig);
+
+  roundLabel.textContent = round;
+  roundNum.textContent = round;
+  document.querySelectorAll('.choice').forEach(b => {
+    b.classList.remove('correct', 'wrong', 'reveal');
+    b.disabled = false;
+  });
+  explainEl.classList.remove('show');
+  explainEl.innerHTML = '';
+  nextBtn.style.display = 'none';
+  renderDots();
+
+  // Autoplay: original then transformed shortly after
+  setTimeout(() => playMotif(currentOrig), 250);
+  setTimeout(() => playMotif(currentXformMotif), 250 + motifDurationMs(currentOrig) + 500);
+}
+
+function motifDurationMs(motif) {
+  const totalSixteenths = motif.reduce((s, e) => s + e.d, 0);
+  const secPerSixteenth = 60 / 96 / 4;
+  return totalSixteenths * secPerSixteenth * 1000;
+}
+
+function answer(choiceKey) {
+  if (answered) return;
+  answered = true;
+  const isRight = (choiceKey === currentXformKey);
+  document.querySelectorAll('.choice').forEach(b => { b.disabled = true; });
+  const clicked = document.querySelector(`.choice[data-choice="${choiceKey}"]`);
+  const realAnswer = document.querySelector(`.choice[data-choice="${currentXformKey}"]`);
+  if (isRight) {
+    clicked.classList.add('correct');
+    correct++;
+    dots.push('correct');
+  } else {
+    clicked.classList.add('wrong');
+    realAnswer.classList.add('reveal');
+    wrong++;
+    dots.push('wrong');
+  }
+  correctCount.textContent = correct;
+  incorrectCount.textContent = wrong;
+
+  // Explain
+  const label = { transpose: 'Transpose', invert: 'Invert', retrograde: 'Retrograde', sequence: 'Sequence' }[currentXformKey];
+  const text = isRight
+    ? EXPLAIN[currentXformKey].good
+    : EXPLAIN[choiceKey].bad(label);
+  explainEl.innerHTML = text;
+  explainEl.classList.add('show');
+  nextBtn.style.display = 'inline-block';
+  nextBtn.textContent = (round === ROUNDS) ? 'See results →' : 'Next round →';
+  renderDots();
+}
+
+function finish() {
+  quizPanel.style.display = 'none';
+  resultPanel.classList.add('show');
+  document.getElementById('finalCorrect').textContent = correct;
+
+  const pass = correct >= 7;
+  resultPanel.classList.toggle('pass', pass);
+  const blurb = document.getElementById('resultBlurb');
+  const prompt = document.getElementById('resultPrompt');
+  if (pass) {
+    prompt.textContent = '✓ Passed';
+    blurb.textContent = `You named ${correct} of 10 transformations by ear. Your ear now parses melody the way composers write it — as a small idea being moved, flipped, and restated.`;
+    completeBtn.style.display = 'inline-block';
+  } else {
+    prompt.textContent = '— Not quite —';
+    blurb.textContent = `You got ${correct} of 10. Seven is the pass bar. The tricky pair is usually transpose vs. sequence — sequences are the longer ones (original + restatement). Retake whenever.`;
+  }
+
+  // Save best
+  const p = loadProgressRaw();
+  if (!p.quizBest || correct > p.quizBest) {
+    p.quizBest = correct;
+    saveProgress(p);
+  }
+  updateBestLabel();
+
+  if (pass && p.lesson4 !== 'complete') {
+    // allow user to mark complete explicitly
+  }
+}
+
+// ============ PROGRESS ============
+const PROGRESS_KEY = 'rizzo-studio-melody';
+function loadProgressRaw() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+function updateBestLabel() {
+  const b = loadBest();
+  document.getElementById('bestLabel').textContent = b != null ? 'best: ' + b + '/10' : 'best: —';
+}
+
+function refreshCompleteBtn() {
+  const p = loadProgressRaw();
+  if (p.lesson4 === 'complete') {
+    completeBtn.textContent = '✓ complete';
+    completeBtn.classList.add('done');
+    document.getElementById('completeBanner').style.display = 'block';
+  }
+}
+completeBtn.addEventListener('click', () => {
+  const p = loadProgressRaw();
+  p.lesson4 = 'complete';
+  saveProgress(p);
+  refreshCompleteBtn();
+});
+
+// ============ WIRE ============
+document.getElementById('playOrigBtn').addEventListener('click', () => playMotif(currentOrig));
+document.getElementById('playXformBtn').addEventListener('click', () => playMotif(currentXformMotif));
+document.querySelectorAll('.choice').forEach(b => {
+  b.addEventListener('click', () => answer(b.dataset.choice));
+});
+nextBtn.addEventListener('click', () => {
+  if (round < ROUNDS) nextRound();
+  else finish();
+});
+document.getElementById('retryBtn').addEventListener('click', () => {
+  round = 0; correct = 0; wrong = 0; dots.length = 0;
+  quizPanel.style.display = '';
+  resultPanel.classList.remove('show');
+  correctCount.textContent = 0;
+  incorrectCount.textContent = 0;
+  nextRound();
+});
+
+// ============ INIT ============
+updateBestLabel();
+refreshCompleteBtn();
+nextRound();
+</script>
+
+</body>
+</html>

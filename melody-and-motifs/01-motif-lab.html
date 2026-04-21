@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Motif Lab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 16px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.xform { background: var(--panel-2); border-color: var(--accent); color: var(--accent); }
+  button.xform:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  /* TRANSPORT */
+  .transport { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .transport label { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+  .transport input[type=range] { accent-color: var(--warm); width: 100px; }
+
+  /* PIANO ROLL */
+  .roll-wrap { background: var(--panel-deep); border-radius: 6px; padding: 12px; overflow-x: auto; }
+  .roll {
+    display: grid;
+    grid-template-columns: 42px repeat(16, 1fr);
+    gap: 2px;
+    min-width: 640px;
+  }
+  .roll .pitch-label {
+    color: var(--muted); font-size: 10px;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 6px;
+    letter-spacing: 1px;
+  }
+  .roll .cell {
+    height: 22px; background: #1a1620; border-radius: 2px;
+    cursor: pointer; transition: background 0.08s, box-shadow 0.08s;
+    border: 1px solid transparent;
+  }
+  .roll .cell.beat { background: #221c2a; }
+  .roll .cell:hover { border-color: var(--warm); }
+  .roll .cell.on { background: var(--warm); box-shadow: 0 0 8px rgba(212,163,115,0.5); }
+  .roll .cell.on.accent { background: var(--accent); box-shadow: 0 0 8px rgba(193,122,156,0.5); }
+  .roll .cell.playing { outline: 1px solid var(--ink); outline-offset: 1px; }
+  .roll .cell.black-key { background: #14111a; }
+  .roll .cell.black-key.beat { background: #1b1624; }
+  .roll .col-header { color: var(--muted); font-size: 9px; text-align: center; padding-bottom: 4px; letter-spacing: 1px; }
+
+  /* SEED LIBRARY */
+  .seed-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .seed-btn {
+    padding: 8px 14px; font-size: 12px; background: var(--panel-2);
+    border: 1px solid var(--grid); color: var(--ink); border-radius: 4px;
+    cursor: pointer; font-family: inherit;
+  }
+  .seed-btn:hover { border-color: var(--warm); color: var(--warm); }
+
+  /* TRANSFORMATIONS */
+  .xform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+  .xform-grid button { text-align: left; padding: 12px 14px; }
+  .xform-grid .xform-name { display: block; font-size: 13px; margin-bottom: 2px; }
+  .xform-grid .xform-desc { display: block; font-size: 10px; color: var(--muted); font-weight: normal; text-transform: none; letter-spacing: 0; }
+  .xform-grid button.xform:hover .xform-desc { color: var(--bg); }
+
+  /* HISTORY */
+  .history { background: var(--panel-deep); border-radius: 4px; padding: 10px 14px; min-height: 36px; font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .history .step { color: var(--ink); background: var(--panel-hi); padding: 2px 8px; border-radius: 3px; border: 1px solid var(--grid); font-size: 11px; }
+  .history .step.xform { color: var(--accent); border-color: var(--accent); }
+  .history .arrow { color: var(--grid); }
+
+  /* LESSON NAV + MATH */
+  .lesson-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; font-size: 12px; color: var(--muted); }
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 10px 0; }
+  .math strong { color: var(--warm); font-weight: 400; }
+  .math em { color: var(--accent); font-style: normal; }
+  .math code { background: var(--panel-deep); padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+
+  .hint { font-size: 11px; color: var(--muted); margin-top: 8px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<nav class="lesson-nav">
+  <a href="index.html">← Module: Melody &amp; Motifs</a>
+  <span>Lesson 1 of 4 — Motif Lab</span>
+  <a href="02-call-response.html">Next: Call &amp; Response →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, var(--panel-hi), var(--panel)); border:1px solid var(--warm); border-radius:6px; padding:14px 18px; margin-bottom:20px; color:var(--warm); font-size:13px;">
+  ✓ Lesson 1 marked complete. <a href="index.html" style="color:var(--accent);">Back to module →</a>
+</div>
+
+<h1>~ Motif Lab ~</h1>
+<p class="sub">A motif is just a little shape — three to six notes, an idea. Nearly every famous melody is one small shape being messed with. Plant a seed. Transform it. Hear how much mileage a tiny idea gives you.</p>
+
+<!-- 1. SEED -->
+<div class="panel">
+  <h2>1 · Plant a seed</h2>
+  <div class="seed-row" id="seedRow">
+    <button class="seed-btn" data-seed="ode">Ode to Joy opener</button>
+    <button class="seed-btn" data-seed="mary">Mary Had a Little Lamb</button>
+    <button class="seed-btn" data-seed="beethoven5">Beethoven's 5th (da-da-da-DUM)</button>
+    <button class="seed-btn" data-seed="arpeggio">Major arpeggio</button>
+    <button class="seed-btn" data-seed="blank">(blank canvas)</button>
+  </div>
+  <div class="hint">Or click cells on the grid below to draw your own. The roll is one octave, 16 sixteenth-notes long.</div>
+</div>
+
+<!-- 2. ROLL + TRANSPORT -->
+<div class="panel">
+  <h2>2 · The motif</h2>
+  <div class="transport">
+    <button id="playBtn" class="primary">▶ play</button>
+    <button id="stopBtn">■ stop</button>
+    <label>tempo
+      <input type="range" id="tempo" min="60" max="160" step="1" value="100">
+      <span id="tempoVal" style="color:var(--ink);">100 BPM</span>
+    </label>
+    <label>vol
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.7">
+    </label>
+  </div>
+  <div class="roll-wrap">
+    <div class="roll" id="roll"></div>
+  </div>
+  <div class="hint">Click any cell to toggle a note. Each column is one sixteenth-note. One note per column.</div>
+</div>
+
+<!-- 3. TRANSFORMATIONS -->
+<div class="panel">
+  <h2>3 · Transform</h2>
+  <div class="xform-grid">
+    <button class="xform" data-xform="transposeUp">
+      <span class="xform-name">↑ Transpose +2</span>
+      <span class="xform-desc">Shift every note up a whole step. Same shape, higher neighborhood.</span>
+    </button>
+    <button class="xform" data-xform="transposeDown">
+      <span class="xform-name">↓ Transpose −2</span>
+      <span class="xform-desc">Shift every note down a whole step.</span>
+    </button>
+    <button class="xform" data-xform="invert">
+      <span class="xform-name">⇅ Invert</span>
+      <span class="xform-desc">Flip every interval upside-down around the first note. Down becomes up.</span>
+    </button>
+    <button class="xform" data-xform="retrograde">
+      <span class="xform-name">◀ Retrograde</span>
+      <span class="xform-desc">Play the motif backwards. Last note first, first note last.</span>
+    </button>
+    <button class="xform" data-xform="augment">
+      <span class="xform-name">≡ Augment</span>
+      <span class="xform-desc">Stretch in time. Every note twice as long. Same pitches, half the speed.</span>
+    </button>
+    <button class="xform" data-xform="fragment">
+      <span class="xform-name">▬ Fragment</span>
+      <span class="xform-desc">Keep the head, drop the tail. Only the first half survives.</span>
+    </button>
+    <button class="xform" data-xform="sequenceUp">
+      <span class="xform-name">↗ Sequence +2</span>
+      <span class="xform-desc">Restate the motif a step higher right after itself. The classic.</span>
+    </button>
+    <button class="xform" data-xform="sequenceDown">
+      <span class="xform-name">↘ Sequence −2</span>
+      <span class="xform-desc">Restate the motif a step lower right after itself.</span>
+    </button>
+    <button class="xform" data-xform="undo">
+      <span class="xform-name">↶ Undo</span>
+      <span class="xform-desc">Walk one step back up the transformation chain.</span>
+    </button>
+  </div>
+  <div class="history" id="history">
+    <span>chain:</span>
+    <span class="step" id="historyStart">(seed)</span>
+  </div>
+</div>
+
+<!-- 4. THE IDEA -->
+<div class="panel">
+  <h2>The idea</h2>
+  <div class="math">
+    <p>Melody lives by <strong>repetition with variation</strong>. A listener needs to hear something enough times to recognize it, but not so many times that they stop listening. The transformations above are how composers thread that needle: same idea, different clothes.</p>
+    <p><em>Transpose</em> moves the whole shape up or down — Beethoven's "da-da-da-DUM" appears at dozens of pitch levels in the first movement. <em>Invert</em> turns a rising figure into a falling one; Bach loved this. <em>Retrograde</em> reads the motif backwards — rarer, but Stravinsky and Schoenberg used it constantly. <em>Sequence</em> is just transpose-and-append, the single most-used move in Western melody.</p>
+    <p>Try this: start with <code>Mary Had a Little Lamb</code>. Hit <em>invert</em>. That "little lamb" shape now falls where it used to rise. Hit it again — and you've basically written a different folk song. The shape is preserved; the world inside the shape is different.</p>
+  </div>
+  <button id="completeBtn" class="complete-btn">Mark lesson complete →</button>
+</div>
+
+<script>
+// ============ PITCH GRID ============
+// 13 pitches, C4 (bottom) to C5 (top). Index 0 = C5 at the visual TOP.
+const PITCHES = ['C5','B4','A#4','A4','G#4','G4','F#4','F4','E4','D#4','D4','C#4','C4'];
+const BLACK = new Set(['C#4','D#4','F#4','G#4','A#4']);
+const STEPS = 16;
+
+// Note state: array of length STEPS. Each entry = pitch index (0..12) or null.
+let notes = new Array(STEPS).fill(null);
+// Duration multiplier — for augment. 1 = 16ths, 2 = 8ths, 4 = quarters.
+let durMult = 1;
+// History of transformations applied (for display + undo).
+let history = [];           // array of labels
+let snapshots = [];         // array of {notes, durMult} for undo
+
+// ============ SEED LIBRARY ============
+// Pitch indexes use the PITCHES array (0 = C5, 12 = C4).
+// To make seeds readable, write as pitch names then map.
+const SEEDS = {
+  // Ode to Joy: E E F G G F E D C C D E E D D
+  ode: [
+    ['E4',0],['E4',1],['F4',2],['G4',3],
+    ['G4',4],['F4',5],['E4',6],['D4',7],
+    ['C4',8],['C4',9],['D4',10],['E4',11],
+    ['E4',12],['D4',14]
+  ],
+  // Mary Had a Little Lamb: E D C D E E E
+  mary: [
+    ['E4',0],['D4',2],['C4',4],['D4',6],
+    ['E4',8],['E4',10],['E4',12]
+  ],
+  // Beethoven's 5th: G G G E♭ (but we'll use G G G Eb in C minor-ish)
+  // In our C-octave grid: rest, G G G, long Eb
+  beethoven5: [
+    ['G4',2],['G4',3],['G4',4],['D#4',6]
+  ],
+  // Major arpeggio: C E G C E G C
+  arpeggio: [
+    ['C4',0],['E4',2],['G4',4],['C5',6],
+    ['G4',8],['E4',10],['C4',12]
+  ],
+  blank: []
+};
+
+// Convert pitch name -> pitch index (0..12 in PITCHES).
+function pitchIndex(name) { return PITCHES.indexOf(name); }
+
+function loadSeed(key) {
+  notes = new Array(STEPS).fill(null);
+  durMult = 1;
+  const seed = SEEDS[key] || [];
+  for (const [pn, step] of seed) {
+    const pi = pitchIndex(pn);
+    if (pi >= 0 && step < STEPS) notes[step] = pi;
+  }
+  history = ['seed: ' + key];
+  snapshots = [];
+  renderRoll();
+  renderHistory();
+}
+
+// ============ PIANO ROLL ============
+const rollEl = document.getElementById('roll');
+
+function renderRoll() {
+  rollEl.innerHTML = '';
+  // Header row: empty label + 16 step numbers
+  const emptyHdr = document.createElement('div');
+  emptyHdr.className = 'col-header';
+  rollEl.appendChild(emptyHdr);
+  for (let s = 0; s < STEPS; s++) {
+    const h = document.createElement('div');
+    h.className = 'col-header';
+    h.textContent = (s % 4 === 0) ? ((s / 4) + 1) : '·';
+    rollEl.appendChild(h);
+  }
+  // Pitch rows
+  for (let p = 0; p < PITCHES.length; p++) {
+    const lbl = document.createElement('div');
+    lbl.className = 'pitch-label';
+    lbl.textContent = PITCHES[p];
+    rollEl.appendChild(lbl);
+    for (let s = 0; s < STEPS; s++) {
+      const c = document.createElement('div');
+      c.className = 'cell';
+      if (BLACK.has(PITCHES[p])) c.classList.add('black-key');
+      if (s % 4 === 0) c.classList.add('beat');
+      if (notes[s] === p) c.classList.add('on');
+      c.dataset.step = s;
+      c.dataset.pitch = p;
+      c.addEventListener('click', () => toggleCell(s, p));
+      rollEl.appendChild(c);
+    }
+  }
+}
+
+function toggleCell(step, pitch) {
+  if (notes[step] === pitch) notes[step] = null;
+  else notes[step] = pitch;
+  renderRoll();
+}
+
+// ============ HISTORY / HISTORY DISPLAY ============
+const historyEl = document.getElementById('history');
+function renderHistory() {
+  historyEl.innerHTML = '<span>chain:</span>';
+  history.forEach((h, i) => {
+    const s = document.createElement('span');
+    s.className = 'step' + (i > 0 ? ' xform' : '');
+    s.textContent = h.replace(/^seed: /, '') + (i === 0 ? '' : '');
+    historyEl.appendChild(s);
+    if (i < history.length - 1) {
+      const a = document.createElement('span');
+      a.className = 'arrow';
+      a.textContent = '→';
+      historyEl.appendChild(a);
+    }
+  });
+}
+
+function snapshot() {
+  snapshots.push({ notes: notes.slice(), durMult: durMult });
+  if (snapshots.length > 50) snapshots.shift();
+}
+
+// ============ TRANSFORMATIONS ============
+function listNotes() {
+  // Return [{step, pitch}, ...] sorted by step
+  const out = [];
+  for (let s = 0; s < STEPS; s++) if (notes[s] != null) out.push({ step: s, pitch: notes[s] });
+  return out;
+}
+
+function applyTranspose(semitones) {
+  // We're working in pitch indices, where PITCHES[0]=C5, PITCHES[12]=C4.
+  // LOWER index = HIGHER pitch. So transpose UP in pitch = DECREASE index.
+  snapshot();
+  const shift = -semitones; // up = negative index shift
+  const newNotes = new Array(STEPS).fill(null);
+  for (let s = 0; s < STEPS; s++) {
+    if (notes[s] != null) {
+      const np = notes[s] + shift;
+      if (np >= 0 && np < PITCHES.length) newNotes[s] = np;
+      // notes that fall off the grid are dropped
+    }
+  }
+  notes = newNotes;
+  history.push((semitones > 0 ? '↑' : '↓') + ' transpose ' + Math.abs(semitones));
+}
+
+function applyInvert() {
+  snapshot();
+  const list = listNotes();
+  if (list.length === 0) return;
+  const anchor = list[0].pitch; // fixed anchor
+  const newNotes = new Array(STEPS).fill(null);
+  for (const { step, pitch } of list) {
+    const interval = pitch - anchor;   // since LOWER index is higher pitch,
+    const flipped = anchor - interval; // mirroring around anchor works the same
+    if (flipped >= 0 && flipped < PITCHES.length) newNotes[step] = flipped;
+  }
+  notes = newNotes;
+  history.push('⇅ invert');
+}
+
+function applyRetrograde() {
+  snapshot();
+  const newNotes = new Array(STEPS).fill(null);
+  const list = listNotes();
+  if (list.length === 0) return;
+  const first = list[0].step;
+  const last = list[list.length - 1].step;
+  for (const { step, pitch } of list) {
+    const mirrored = first + (last - step);
+    if (mirrored >= 0 && mirrored < STEPS) newNotes[mirrored] = pitch;
+  }
+  notes = newNotes;
+  history.push('◀ retrograde');
+}
+
+function applyAugment() {
+  // Spread out: each note moves to 2*step relative to the first note.
+  snapshot();
+  const list = listNotes();
+  if (list.length === 0) return;
+  const first = list[0].step;
+  const newNotes = new Array(STEPS).fill(null);
+  for (const { step, pitch } of list) {
+    const ns = first + (step - first) * 2;
+    if (ns < STEPS) newNotes[ns] = pitch;
+  }
+  notes = newNotes;
+  history.push('≡ augment');
+}
+
+function applyFragment() {
+  snapshot();
+  const list = listNotes();
+  if (list.length === 0) return;
+  const first = list[0].step;
+  const last = list[list.length - 1].step;
+  const cutoff = first + Math.floor((last - first) / 2);
+  const newNotes = new Array(STEPS).fill(null);
+  for (const { step, pitch } of list) {
+    if (step <= cutoff) newNotes[step] = pitch;
+  }
+  notes = newNotes;
+  history.push('▬ fragment');
+}
+
+function applySequence(semitones) {
+  // Transpose copy and append after the original's span.
+  snapshot();
+  const list = listNotes();
+  if (list.length === 0) return;
+  const first = list[0].step;
+  const last = list[list.length - 1].step;
+  const span = last - first + 1;
+  const offset = span; // place the copy immediately after
+  const shift = -semitones;
+  const newNotes = notes.slice();
+  for (const { step, pitch } of list) {
+    const ns = step + offset;
+    const np = pitch + shift;
+    if (ns < STEPS && np >= 0 && np < PITCHES.length) newNotes[ns] = np;
+  }
+  notes = newNotes;
+  history.push((semitones > 0 ? '↗' : '↘') + ' sequence ' + Math.abs(semitones));
+}
+
+function applyUndo() {
+  if (snapshots.length === 0) return;
+  const prev = snapshots.pop();
+  notes = prev.notes;
+  durMult = prev.durMult;
+  history.pop();
+}
+
+const XFORMS = {
+  transposeUp:   () => applyTranspose(2),
+  transposeDown: () => applyTranspose(-2),
+  invert:        () => applyInvert(),
+  retrograde:    () => applyRetrograde(),
+  augment:       () => applyAugment(),
+  fragment:      () => applyFragment(),
+  sequenceUp:    () => applySequence(2),
+  sequenceDown:  () => applySequence(-2),
+  undo:          () => applyUndo()
+};
+
+// Wire transformation buttons
+document.querySelectorAll('button.xform').forEach(b => {
+  b.addEventListener('click', () => {
+    const key = b.dataset.xform;
+    if (!XFORMS[key]) return;
+    XFORMS[key]();
+    renderRoll();
+    renderHistory();
+  });
+});
+
+// Wire seed buttons
+document.querySelectorAll('.seed-btn').forEach(b => {
+  b.addEventListener('click', () => loadSeed(b.dataset.seed));
+});
+
+// ============ PLAYBACK ============
+let synth, playing = false, loopId = null;
+
+function ensureSynth() {
+  if (!synth) {
+    synth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.008, decay: 0.12, sustain: 0.55, release: 0.25 }
+    }).toDestination();
+    synth.volume.value = -10;
+  }
+}
+
+async function play() {
+  await Tone.start();
+  ensureSynth();
+  Tone.Transport.bpm.value = parseInt(document.getElementById('tempo').value, 10);
+  if (loopId !== null) Tone.Transport.clear(loopId);
+
+  let step = 0;
+  loopId = Tone.Transport.scheduleRepeat((time) => {
+    // highlight play head
+    document.querySelectorAll('.cell.playing').forEach(c => c.classList.remove('playing'));
+    document.querySelectorAll(`.cell[data-step="${step}"]`).forEach(c => c.classList.add('playing'));
+    if (notes[step] != null) {
+      const p = PITCHES[notes[step]];
+      synth.triggerAttackRelease(p, '16n', time);
+    }
+    step = (step + 1) % STEPS;
+  }, '16n');
+
+  Tone.Transport.start();
+  playing = true;
+  document.getElementById('playBtn').textContent = '▶ playing';
+}
+
+function stop() {
+  Tone.Transport.stop();
+  if (loopId !== null) { Tone.Transport.clear(loopId); loopId = null; }
+  document.querySelectorAll('.cell.playing').forEach(c => c.classList.remove('playing'));
+  playing = false;
+  document.getElementById('playBtn').textContent = '▶ play';
+}
+
+document.getElementById('playBtn').addEventListener('click', () => { if (!playing) play(); else stop(); });
+document.getElementById('stopBtn').addEventListener('click', stop);
+
+document.getElementById('tempo').addEventListener('input', e => {
+  document.getElementById('tempoVal').textContent = e.target.value + ' BPM';
+  if (Tone.Transport.state === 'started') Tone.Transport.bpm.value = parseInt(e.target.value, 10);
+});
+document.getElementById('vol').addEventListener('input', e => {
+  const db = (parseFloat(e.target.value) === 0) ? -60 : (20 * Math.log10(parseFloat(e.target.value)));
+  if (synth) synth.volume.value = db;
+});
+
+// ============ PROGRESS ============
+const PROGRESS_KEY = 'rizzo-studio-melody';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const completeBtn = document.getElementById('completeBtn');
+function refreshCompleteBtn() {
+  const p = loadProgress();
+  if (p.lesson1 === 'complete') {
+    completeBtn.textContent = '✓ complete';
+    completeBtn.classList.add('done');
+    document.getElementById('completeBanner').style.display = 'block';
+  }
+}
+completeBtn.addEventListener('click', () => {
+  const p = loadProgress();
+  p.lesson1 = 'complete';
+  saveProgress(p);
+  refreshCompleteBtn();
+});
+
+// ============ INIT ============
+loadSeed('mary');
+refreshCompleteBtn();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Melody over Chords</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --yellow: #d4c07a;
+    --red: #c17a7a;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 16px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  /* TRANSPORT */
+  .transport { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .transport label { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+  .transport input[type=range] { accent-color: var(--warm); width: 100px; }
+
+  /* CHORD BAR */
+  .chord-bar { display: grid; grid-template-columns: 42px repeat(4, 1fr); gap: 2px; margin-bottom: 6px; }
+  .chord-bar .spacer { }
+  .chord-label {
+    text-align: center; padding: 6px 0; font-size: 12px;
+    background: var(--panel-2); border-radius: 3px; color: var(--warm);
+    border: 1px solid var(--grid); letter-spacing: 1px;
+  }
+  .chord-label.playing { background: var(--panel-hi); border-color: var(--warm); }
+
+  /* PIANO ROLL */
+  .roll-wrap { background: var(--panel-deep); border-radius: 6px; padding: 12px; overflow-x: auto; }
+  .roll {
+    display: grid;
+    grid-template-columns: 42px repeat(32, 1fr);
+    gap: 2px;
+    min-width: 720px;
+  }
+  .roll .pitch-label {
+    color: var(--muted); font-size: 10px;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 6px;
+    letter-spacing: 1px;
+  }
+  .roll .cell {
+    height: 20px; background: #1a1620; border-radius: 2px;
+    cursor: pointer; transition: background 0.08s, box-shadow 0.08s;
+    border: 1px solid transparent;
+  }
+  .roll .cell.black-key { background: #14111a; }
+  .roll .cell.strong { background: #221c2a; }
+  .roll .cell.black-key.strong { background: #1b1624; }
+  .roll .cell:hover { border-color: var(--warm); }
+  .roll .cell.on.tone-green { background: var(--green); box-shadow: 0 0 8px rgba(143,185,156,0.55); }
+  .roll .cell.on.tone-yellow { background: var(--yellow); box-shadow: 0 0 8px rgba(212,192,122,0.55); }
+  .roll .cell.on.tone-red { background: var(--red); box-shadow: 0 0 8px rgba(193,122,122,0.55); }
+  .roll .cell.playing { outline: 1px solid var(--ink); outline-offset: 1px; }
+
+  /* BAR DIVIDERS on roll */
+  .roll .col-header { color: var(--muted); font-size: 9px; text-align: center; padding-bottom: 4px; }
+
+  /* STATS */
+  .stats { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .stat strong { font-weight: 400; }
+  .stat.green strong { color: var(--green); }
+  .stat.yellow strong { color: var(--yellow); }
+  .stat.red strong { color: var(--red); }
+
+  /* PRESETS */
+  .preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .preset-btn {
+    padding: 8px 14px; font-size: 12px; background: var(--panel-2);
+    border: 1px solid var(--grid); color: var(--ink); border-radius: 4px;
+    cursor: pointer; font-family: inherit;
+  }
+  .preset-btn:hover { border-color: var(--warm); color: var(--warm); }
+
+  /* LESSON NAV + MATH */
+  .lesson-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; font-size: 12px; color: var(--muted); }
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 10px 0; }
+  .math strong { color: var(--warm); font-weight: 400; }
+  .math em { color: var(--accent); font-style: normal; }
+  .math code { background: var(--panel-deep); padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 10px; }
+  .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .legend .dot.g { background: var(--green); }
+  .legend .dot.y { background: var(--yellow); }
+  .legend .dot.r { background: var(--red); }
+
+  .hint { font-size: 11px; color: var(--muted); margin-top: 8px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<nav class="lesson-nav">
+  <a href="index.html">← Module: Melody &amp; Motifs</a>
+  <span>Lesson 3 of 4 — Melody over Chords</span>
+  <a href="04-quiz.html">Next: Name That Transformation →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, var(--panel-hi), var(--panel)); border:1px solid var(--warm); border-radius:6px; padding:14px 18px; margin-bottom:20px; color:var(--warm); font-size:13px;">
+  ✓ Lesson 3 marked complete. <a href="index.html" style="color:var(--accent);">Back to module →</a>
+</div>
+
+<h1>~ Melody over Chords ~</h1>
+<p class="sub">A chord progression is a field. A melody is a path across it. Some steps land on ground the chord is already holding — those feel stable. Some step outside — those feel like flavor. Some step into thin air — and those are where the magic (or the damage) lives.</p>
+
+<!-- 1. TRANSPORT -->
+<div class="panel">
+  <h2>1 · The loop</h2>
+  <div class="transport">
+    <button id="playBtn" class="primary">▶ play</button>
+    <button id="stopBtn">■ stop</button>
+    <label>tempo
+      <input type="range" id="tempo" min="60" max="120" step="1" value="82">
+      <span id="tempoVal" style="color:var(--ink);">82 BPM</span>
+    </label>
+    <label>melody vol
+      <input type="range" id="melVol" min="0" max="1" step="0.01" value="0.8">
+    </label>
+    <label>chord vol
+      <input type="range" id="chordVol" min="0" max="1" step="0.01" value="0.45">
+    </label>
+  </div>
+
+  <div class="roll-wrap">
+    <div class="chord-bar" id="chordBar">
+      <div class="spacer"></div>
+      <!-- chord labels added by JS -->
+    </div>
+    <div class="roll" id="roll"></div>
+  </div>
+
+  <div class="stats">
+    <span class="stat green"><strong id="greenCount">0</strong> chord tones</span>
+    <span class="stat yellow"><strong id="yellowCount">0</strong> diatonic</span>
+    <span class="stat red"><strong id="redCount">0</strong> chromatic</span>
+  </div>
+  <div class="legend">
+    <span><span class="dot g"></span> Chord tone — lives inside the current chord. Use on strong beats.</span>
+    <span><span class="dot y"></span> Diatonic — in C major but not in the chord. Good passing/neighbor notes.</span>
+    <span><span class="dot r"></span> Chromatic — outside the key. Powerful when resolved; dissonant when stranded.</span>
+  </div>
+
+  <div class="preset-row">
+    <span style="color:var(--muted); font-size:11px; align-self:center;">try a preset:</span>
+    <button class="preset-btn" data-preset="skeleton">Chord-tone skeleton</button>
+    <button class="preset-btn" data-preset="walk">Diatonic walk</button>
+    <button class="preset-btn" data-preset="chromatic">Chromatic passing</button>
+    <button class="preset-btn" data-preset="clear">Clear</button>
+  </div>
+  <div class="hint">Progression: <code>Cmaj7 → Am7 → Fmaj7 → G7</code>. Each bar is 8 eighth-notes. Strong beats are columns 1 &amp; 5 of each bar.</div>
+</div>
+
+<!-- 2. THE IDEA -->
+<div class="panel">
+  <h2>The idea</h2>
+  <div class="math">
+    <p>There are three gravitational zones under a given chord. <em>Chord tones</em> are the four notes that chord is literally playing (root, 3rd, 5th, 7th). They feel fused into the harmony. <em>Diatonic tones</em> are the other three notes of the key — they're in the same universe but not in the chord; they create motion. <em>Chromatic tones</em> are the five notes outside the key; they're foreign, and they always want to go somewhere.</p>
+    <p>The classical rule: land on chord tones on strong beats, use everything else to get between them. The magic rule: break this <em>on purpose</em>. A chromatic passing tone that resolves down a half-step is one of the sweetest sounds in music — used by everyone from Bach to Bill Evans to Beyoncé.</p>
+    <p>Try the three presets in order. <em>Skeleton</em> is pure chord tones — rock-solid but a little boring. <em>Walk</em> adds diatonic passing tones — it breathes. <em>Chromatic</em> sneaks in a <code>C#</code> and a <code>F#</code> that resolve inwards — suddenly it sounds like a jazz ballad. Same progression, three different melodies, three different ceilings.</p>
+  </div>
+  <button id="completeBtn" class="complete-btn">Mark lesson complete →</button>
+</div>
+
+<script>
+// ============ CONSTANTS ============
+// 13 pitches from C5 down to C4 (PITCHES[0] is VISUAL TOP = highest pitch).
+const PITCHES = ['C5','B4','A#4','A4','G#4','G4','F#4','F4','E4','D#4','D4','C#4','C4'];
+const BLACK = new Set(['C#4','D#4','F#4','G#4','A#4']);
+const STEPS = 32;      // 4 bars × 8 eighths
+const STEPS_PER_BAR = 8;
+const PROGRESSION = ['Cmaj7', 'Am7', 'Fmaj7', 'G7'];
+
+// Chord tones by chord name. Using letter names (no octave).
+const CHORD_TONES = {
+  'Cmaj7': ['C','E','G','B'],
+  'Am7':   ['A','C','E','G'],
+  'Fmaj7': ['F','A','C','E'],
+  'G7':    ['G','B','D','F']
+};
+
+const C_MAJOR = new Set(['C','D','E','F','G','A','B']);
+
+// For each step, which chord is playing?
+function chordAt(step) { return PROGRESSION[Math.floor(step / STEPS_PER_BAR)]; }
+
+// Strip octave from pitch name. 'C#4' -> 'C#', 'C4' -> 'C'
+function pn(pitch) { return pitch.replace(/[0-9]/g, ''); }
+
+// Classify a pitch at a step into 'green', 'yellow', 'red'.
+function classify(pitchName, step) {
+  const chord = chordAt(step);
+  const letter = pn(pitchName);
+  if (CHORD_TONES[chord].includes(letter)) return 'green';
+  if (C_MAJOR.has(letter)) return 'yellow';
+  return 'red';
+}
+
+// ============ STATE ============
+let notes = new Array(STEPS).fill(null); // each = pitch index or null
+let synth, chordSynth;
+let playing = false;
+let loopId = null;
+
+// ============ RENDER ============
+function renderChordBar() {
+  const bar = document.getElementById('chordBar');
+  bar.innerHTML = '<div class="spacer"></div>';
+  PROGRESSION.forEach((ch, i) => {
+    const el = document.createElement('div');
+    el.className = 'chord-label';
+    el.textContent = ch;
+    el.id = 'chordLabel' + i;
+    bar.appendChild(el);
+  });
+}
+
+function renderRoll() {
+  const roll = document.getElementById('roll');
+  roll.innerHTML = '';
+  // header row
+  const emptyHdr = document.createElement('div');
+  emptyHdr.className = 'col-header';
+  roll.appendChild(emptyHdr);
+  for (let s = 0; s < STEPS; s++) {
+    const h = document.createElement('div');
+    h.className = 'col-header';
+    const inBarStep = s % STEPS_PER_BAR;
+    if (inBarStep === 0) h.textContent = (Math.floor(s / STEPS_PER_BAR) + 1);
+    else if (inBarStep === 4) h.textContent = '·';
+    else h.textContent = '';
+    roll.appendChild(h);
+  }
+  // pitch rows
+  for (let p = 0; p < PITCHES.length; p++) {
+    const lbl = document.createElement('div');
+    lbl.className = 'pitch-label';
+    lbl.textContent = PITCHES[p];
+    roll.appendChild(lbl);
+    for (let s = 0; s < STEPS; s++) {
+      const c = document.createElement('div');
+      c.className = 'cell';
+      if (BLACK.has(PITCHES[p])) c.classList.add('black-key');
+      // strong beat = start of each bar OR middle of each bar (beat 3 in 4/4 = step 4 of 8-eighth bar)
+      if (s % 4 === 0) c.classList.add('strong');
+      if (notes[s] === p) {
+        c.classList.add('on', 'tone-' + classify(PITCHES[p], s));
+      }
+      c.dataset.step = s;
+      c.dataset.pitch = p;
+      c.addEventListener('click', () => toggleCell(s, p));
+      roll.appendChild(c);
+    }
+  }
+  updateStats();
+}
+
+function toggleCell(step, pitch) {
+  if (notes[step] === pitch) notes[step] = null;
+  else notes[step] = pitch;
+  renderRoll();
+}
+
+function updateStats() {
+  let g = 0, y = 0, r = 0;
+  for (let s = 0; s < STEPS; s++) {
+    if (notes[s] == null) continue;
+    const cls = classify(PITCHES[notes[s]], s);
+    if (cls === 'green') g++;
+    else if (cls === 'yellow') y++;
+    else r++;
+  }
+  document.getElementById('greenCount').textContent = g;
+  document.getElementById('yellowCount').textContent = y;
+  document.getElementById('redCount').textContent = r;
+}
+
+// ============ PRESETS ============
+function setPreset(key) {
+  notes = new Array(STEPS).fill(null);
+  if (key === 'skeleton') {
+    // Root on beat 1 of each bar, 3rd on beat 3. Simple arpeggiated skeleton.
+    const map = [
+      [0, 'C4'], [2, 'E4'], [4, 'G4'], [6, 'E4'],
+      [8, 'A4'], [10, 'C5'], [12, 'E4'], [14, 'G4'],
+      [16, 'F4'], [18, 'A4'], [20, 'C5'], [22, 'A4'],
+      [24, 'G4'], [26, 'B4'], [28, 'D4'], [30, 'F4']
+    ];
+    for (const [s, p] of map) notes[s] = PITCHES.indexOf(p);
+  } else if (key === 'walk') {
+    // Stepwise diatonic line weaving through the chords.
+    const seq = ['C4','D4','E4','G4','A4','G4','E4','D4',
+                 'C4','D4','E4','G4','A4','B4','A4','G4',
+                 'F4','G4','A4','C5','A4','G4','F4','E4',
+                 'D4','E4','F4','G4','F4','D4','B4','D4'];
+    for (let i = 0; i < STEPS; i++) notes[i] = PITCHES.indexOf(seq[i]);
+  } else if (key === 'chromatic') {
+    // Skeleton + chromatic approach tones that resolve inward.
+    const seq = [
+      'C4','C#4','D4','E4','F4','E4','D4','C4',          // Cmaj7 bar
+      'A4','G#4','G4','E4','F4','E4','D4','C4',          // Am7 bar — G# leading up to A is a chromatic approach
+      'F4','F#4','G4','A4','C5','A4','G4','F4',          // Fmaj7 bar
+      'G4','A#4','B4','D4','F4','D4','B4','G4'           // G7 bar — A# → B is chromatic approach
+    ];
+    for (let i = 0; i < STEPS; i++) notes[i] = PITCHES.indexOf(seq[i]);
+  }
+  renderRoll();
+}
+
+document.querySelectorAll('.preset-btn').forEach(b => {
+  b.addEventListener('click', () => setPreset(b.dataset.preset));
+});
+
+// ============ PLAYBACK ============
+function ensureSynths() {
+  if (!synth) {
+    synth = new Tone.Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.01, decay: 0.12, sustain: 0.55, release: 0.25 }
+    }).toDestination();
+    synth.volume.value = -9;
+  }
+  if (!chordSynth) {
+    chordSynth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.06, decay: 0.3, sustain: 0.4, release: 0.8 }
+    }).toDestination();
+    chordSynth.volume.value = -16;
+  }
+}
+
+function chordVoicing(chord) {
+  // Return a list of note names (with octave) for a nice voicing.
+  switch (chord) {
+    case 'Cmaj7': return ['C3','E3','G3','B3'];
+    case 'Am7':   return ['A2','E3','G3','C4'];
+    case 'Fmaj7': return ['F2','A2','C3','E3'];
+    case 'G7':    return ['G2','B2','D3','F3'];
+  }
+}
+
+async function play() {
+  await Tone.start();
+  ensureSynths();
+  Tone.Transport.bpm.value = parseInt(document.getElementById('tempo').value, 10);
+  if (loopId !== null) Tone.Transport.clear(loopId);
+
+  let step = 0;
+  loopId = Tone.Transport.scheduleRepeat((time) => {
+    // Highlight current chord label
+    const bar = Math.floor(step / STEPS_PER_BAR);
+    document.querySelectorAll('.chord-label').forEach(el => el.classList.remove('playing'));
+    const lbl = document.getElementById('chordLabel' + bar);
+    if (lbl) lbl.classList.add('playing');
+
+    // Play chord at start of each bar
+    if (step % STEPS_PER_BAR === 0) {
+      chordSynth.triggerAttackRelease(chordVoicing(chordAt(step)), '2n', time);
+    }
+    // Play melody note if present
+    if (notes[step] != null) {
+      const p = PITCHES[notes[step]];
+      synth.triggerAttackRelease(p, '8n', time);
+    }
+    // Highlight playhead cell
+    Tone.Draw.schedule(() => {
+      document.querySelectorAll('.cell.playing').forEach(c => c.classList.remove('playing'));
+      document.querySelectorAll(`.cell[data-step="${step}"]`).forEach(c => c.classList.add('playing'));
+    }, time);
+
+    step = (step + 1) % STEPS;
+  }, '8n');
+
+  Tone.Transport.start();
+  playing = true;
+  document.getElementById('playBtn').textContent = '▶ playing';
+}
+
+function stop() {
+  Tone.Transport.stop();
+  if (loopId !== null) { Tone.Transport.clear(loopId); loopId = null; }
+  document.querySelectorAll('.cell.playing').forEach(c => c.classList.remove('playing'));
+  document.querySelectorAll('.chord-label').forEach(el => el.classList.remove('playing'));
+  playing = false;
+  document.getElementById('playBtn').textContent = '▶ play';
+}
+
+document.getElementById('playBtn').addEventListener('click', () => { if (!playing) play(); else stop(); });
+document.getElementById('stopBtn').addEventListener('click', stop);
+
+document.getElementById('tempo').addEventListener('input', e => {
+  document.getElementById('tempoVal').textContent = e.target.value + ' BPM';
+  if (Tone.Transport.state === 'started') Tone.Transport.bpm.value = parseInt(e.target.value, 10);
+});
+document.getElementById('melVol').addEventListener('input', e => {
+  const db = (parseFloat(e.target.value) === 0) ? -60 : (20 * Math.log10(parseFloat(e.target.value)));
+  if (synth) synth.volume.value = db;
+});
+document.getElementById('chordVol').addEventListener('input', e => {
+  const db = (parseFloat(e.target.value) === 0) ? -60 : (20 * Math.log10(parseFloat(e.target.value)));
+  if (chordSynth) chordSynth.volume.value = db - 8; // chords stay below melody
+});
+
+// ============ PROGRESS ============
+const PROGRESS_KEY = 'rizzo-studio-melody';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const completeBtn = document.getElementById('completeBtn');
+function refreshCompleteBtn() {
+  const p = loadProgress();
+  if (p.lesson3 === 'complete') {
+    completeBtn.textContent = '✓ complete';
+    completeBtn.classList.add('done');
+    document.getElementById('completeBanner').style.display = 'block';
+  }
+}
+completeBtn.addEventListener('click', () => {
+  const p = loadProgress();
+  p.lesson3 = 'complete';
+  saveProgress(p);
+  refreshCompleteBtn();
+});
+
+// ============ INIT ============
+renderChordBar();
+setPreset('skeleton');
+refreshCompleteBtn();
+</script>
+
+</body>
+</html>
