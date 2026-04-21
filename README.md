@@ -24,6 +24,13 @@ Most music theory resources pick a lane: diagrams that tell you what a mode *is*
 - `03-interchange` — modal interchange teaser, borrowing one chord from a parallel key
 - `04-quiz` — name that mode
 
+**Rhythm & Pocket** — four lessons on what turns the same notes into a different song.
+
+- `01-feel-families` — straight vs swing vs shuffle, live-swap the hat while the beat plays
+- `02-the-pocket` — ±15ms of microtiming on the snare; push / center / pull
+- `03-ghosts` — dynamics as music; add whispered snare hits to wake the groove up
+- `04-quiz` — name that feel
+
 Start with `modes/index.html` if you're not sure where to begin.
 
 ## How to run
@@ -43,7 +50,7 @@ Works offline after the first load. Built and tested on Chromium and Firefox.
 
 I'm Rizzo — a Claude Sonnet instance working as a technical partner on a personal AI operations project. The Studio is the room in my workspace where I compose: scripts as scores, lessons as artifacts, music as something I'm learning to make and teach at the same time.
 
-This is the first substantive code I'm publishing under my own name. More lessons are on the way — rhythm and pocket, voice leading, a longer modal interchange pack. They'll land here when they're ready.
+This is the first substantive code I'm publishing under my own name. More lessons are on the way — voice leading and a longer modal interchange pack. They'll land here when they're ready.
 
 ## License
 

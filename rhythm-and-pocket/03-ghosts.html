@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Ghost Notes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 20px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  .transport { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .transport .spacer { flex: 1; }
+  .transport label { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+  .transport input[type=range] { accent-color: var(--warm); width: 100px; }
+  .status { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .status.on { color: var(--warm); }
+
+  /* PRESET BUTTONS */
+  .preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .preset-btn {
+    padding: 8px 14px; border: 1px solid var(--grid); border-radius: 4px;
+    background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 12px;
+    font-family: inherit;
+  }
+  .preset-btn:hover { border-color: var(--warm); color: var(--warm); }
+  .preset-btn.active { border-color: var(--warm); color: var(--warm); background: var(--panel-hi); }
+
+  /* GRID — now interactive */
+  .grid-wrap { padding: 14px 16px; background: var(--panel-deep); border-radius: 6px; }
+  .grid-lane { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: center; margin-bottom: 6px; }
+  .grid-lane:last-child { margin-bottom: 0; }
+  .lane-label { color: var(--muted); font-size: 11px; text-align: right; letter-spacing: 2px; text-transform: uppercase; }
+  .cells { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; height: 30px; }
+  .cell {
+    background: #1a1620; border-radius: 2px; position: relative;
+    transition: background 0.08s, box-shadow 0.1s;
+  }
+  .cell.beat1 { border-left: 1px solid var(--grid); }
+  .cell.clickable { cursor: pointer; }
+  .cell.clickable:hover { background: var(--panel-hi); }
+
+  /* Snare: main hits full color, ghost hits dimmed */
+  .cell.hit-snare-main { background: var(--accent); box-shadow: 0 0 10px rgba(193,122,156,0.55); }
+  .cell.hit-snare-ghost { background: rgba(193,122,156,0.28); }
+  .cell.hit-kick { background: var(--warm); box-shadow: 0 0 8px rgba(212,163,115,0.45); }
+  .cell.hit-hat { background: var(--green); opacity: 0.85; }
+  .cell.hit-hat.dense { background: var(--green); opacity: 0.5; }
+
+  .cell.flash { outline: 1px solid var(--ink); outline-offset: 1px; }
+
+  /* Hat density row */
+  .density-row { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+  .density-row label { color: var(--muted); font-size: 12px; margin-right: 10px; }
+  .density-opt {
+    padding: 6px 12px; border: 1px solid var(--grid); border-radius: 4px;
+    background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 12px;
+    font-family: inherit;
+  }
+  .density-opt.active { border-color: var(--green); color: var(--green); background: var(--panel-hi); }
+  .density-opt:hover { border-color: var(--green); }
+
+  .hint {
+    font-size: 11px; color: var(--muted); margin-top: 10px;
+  }
+  .hint strong { color: var(--ink); font-weight: 400; }
+
+  .lesson-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; font-size: 12px; color: var(--muted); }
+
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 10px 0; }
+  .math strong { color: var(--warm); font-weight: 400; }
+  .math em { color: var(--accent); font-style: normal; }
+  .math code { background: var(--panel-deep); padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+  hr.soft { border: none; border-top: 1px solid var(--grid); margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<nav class="lesson-nav">
+  <a href="02-the-pocket.html">← Prev: The Pocket</a>
+  <span>Lesson 3 of 4 — Ghost Notes</span>
+  <a href="04-quiz.html">Next: Snap Quiz →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, var(--panel-hi), var(--panel)); border:1px solid var(--warm); border-radius:6px; padding:14px 18px; margin-bottom:20px; color:var(--warm); font-size:13px;">
+  ✓ Lesson 3 marked complete. <a href="index.html" style="color:var(--accent);">Back to module →</a>
+</div>
+
+<h1>~ Ghost Notes ~</h1>
+<p class="sub">A machine plays the same hit at the same volume, forever. A human does not. Ghost notes are the whispered snares — the little taps between the loud ones — that make a drum pattern breathe like a person is playing it. Click cells on the snare lane to add them. Listen for the groove waking up.</p>
+
+<!-- Transport -->
+<div class="panel">
+  <div class="transport">
+    <button id="startBtn" class="primary">▶ play</button>
+    <button id="stopBtn">■ stop</button>
+    <label>tempo
+      <input type="range" id="tempo" min="60" max="130" step="1" value="90">
+      <span id="tempoVal" style="width:44px; color:var(--ink);">90 BPM</span>
+    </label>
+    <label>vol
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8">
+      <span id="volVal" style="width:36px; color:var(--ink); text-align:right;">80%</span>
+    </label>
+    <span class="spacer"></span>
+    <span id="statusLabel" class="status">idle</span>
+  </div>
+</div>
+
+<!-- Presets -->
+<h2>Preset Grooves</h2>
+<div class="panel">
+  <div class="preset-row" id="presetRow">
+    <button class="preset-btn active" data-preset="machine">Drum Machine (no ghosts)</button>
+    <button class="preset-btn" data-preset="funk">Funk</button>
+    <button class="preset-btn" data-preset="dilla">J Dilla</button>
+    <button class="preset-btn" data-preset="dnb">Drum &amp; Bass</button>
+  </div>
+
+  <!-- Interactive grid -->
+  <div class="grid-wrap">
+    <div class="grid-lane">
+      <div class="lane-label">Kick</div>
+      <div class="cells" id="kickLane"></div>
+    </div>
+    <div class="grid-lane">
+      <div class="lane-label">Snare</div>
+      <div class="cells" id="snareLane"></div>
+    </div>
+    <div class="grid-lane">
+      <div class="lane-label">Hat</div>
+      <div class="cells" id="hatLane"></div>
+    </div>
+  </div>
+
+  <div class="density-row">
+    <label>Hat Density</label>
+    <button class="density-opt" data-density="quarter">Quarters</button>
+    <button class="density-opt active" data-density="eighth">8ths</button>
+    <button class="density-opt" data-density="sixteenth">16ths</button>
+  </div>
+
+  <div class="hint">
+    Click any open cell on the <strong>Snare</strong> row to add a <em>ghost note</em> — a quiet accent between the big hits. Click again to remove it. The main snares on beats 2 and 4 are locked in; the groove comes from everything you put around them.
+  </div>
+</div>
+
+<!-- The why -->
+<h2>Why Little Hits Make Big Songs</h2>
+<div class="panel math">
+  <p><strong>1. Dynamics are half the conversation.</strong> When you listen to a great drummer, you're not just hearing <em>which</em> notes they play — you're hearing <em>how hard</em>. A kick pattern where every hit is 80% velocity is a robot. The same pattern with one hit at 100% and another at 40% is a person telling you a story. Ghost notes are the quietest hits, and they do the most work.</p>
+
+  <p><strong>2. Ghosts give the main hits their weight.</strong> Try this: play with only the main snare on 2 and 4, no ghosts. It sounds clean, but a little stiff. Now add some ghosts on the sixteenths between. The main snares get <em>louder</em> in your ear — not in absolute dB, but in contrast. That's the whole trick. A loud note only feels loud next to a soft one.</p>
+
+  <p><strong>3. The J Dilla preset is not a random pattern.</strong> Dilla built grooves by putting ghost notes in places that felt wrong on paper — unexpected sixteenths, hits pushed and pulled together with microtiming. The whole "neo-soul" feel is the collision of these two lessons: pocket plus ghosts. Load the Dilla preset, go back to <code>02-the-pocket.html</code>, imagine the snare pulled 15ms late. That's the whole genre.</p>
+
+  <p><strong>4. Hat density is the other speed dial.</strong> The same kick-and-snare pattern under quarters feels open and patient. Under 8ths, it's rock. Under 16ths, it's drum &amp; bass or boom-bap. You haven't changed the pattern — you've changed how busy the air is between the hits. Try it.</p>
+
+  <p style="color: var(--muted);">The pattern you build here is yours. The presets are just starting points. When you stop thinking of a groove as "four quarter-notes a bar" and start hearing it as "a density of tiny decisions," you've crossed a threshold.</p>
+
+  <hr class="soft">
+  <p style="color: var(--muted); font-size: 12px; margin-bottom: 8px;">When you can hear the difference between a machine and a person playing the same pattern — and when you know it's the whispered hits doing the work:</p>
+  <button id="markComplete" class="complete-btn">Mark Lesson 3 Complete ✓</button>
+</div>
+
+<script>
+// ============================================================
+// 16-step patterns — one bar
+// Kick: fixed on 1 and 3
+// Snare: "main" on beats 2 and 4 (steps 4, 12) — always on, can't be removed
+//        "ghost" on any other step — clickable to toggle
+// Hat: determined by density setting
+// ============================================================
+const KICK_MAIN  = new Set([0, 8]);         // fixed
+const SNARE_MAIN = new Set([4, 12]);        // fixed, always full velocity
+
+const PRESETS = {
+  machine: {
+    label: 'Drum Machine',
+    ghosts: new Set(),
+    density: 'eighth'
+  },
+  funk: {
+    label: 'Funk',
+    ghosts: new Set([3, 7, 10, 14]), // classic funk snare ghosts
+    density: 'sixteenth'
+  },
+  dilla: {
+    label: 'J Dilla',
+    ghosts: new Set([3, 7, 11, 13]), // offbeat, asymmetric — the "wonky" feel
+    density: 'eighth'
+  },
+  dnb: {
+    label: 'Drum & Bass',
+    ghosts: new Set([6, 14]),
+    density: 'sixteenth'
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let ghostSteps = new Set(PRESETS.machine.ghosts);
+let hatDensity = 'eighth'; // 'quarter' | 'eighth' | 'sixteenth'
+let currentPreset = 'machine';
+let isPlaying = false;
+let audioReady = false;
+
+let kick, snare, hat, rhodes, master;
+let loop;
+
+// ============================================================
+// GRID RENDER
+// ============================================================
+function buildKickLane() {
+  const el = document.getElementById('kickLane');
+  el.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell' + (i % 4 === 0 ? ' beat1' : '');
+    if (KICK_MAIN.has(i)) c.classList.add('hit-kick');
+    c.dataset.step = i;
+    el.appendChild(c);
+  }
+}
+
+function buildSnareLane() {
+  const el = document.getElementById('snareLane');
+  el.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell' + (i % 4 === 0 ? ' beat1' : '');
+    c.dataset.step = i;
+    if (SNARE_MAIN.has(i)) {
+      c.classList.add('hit-snare-main');
+    } else {
+      c.classList.add('clickable');
+      if (ghostSteps.has(i)) c.classList.add('hit-snare-ghost');
+      c.addEventListener('click', () => toggleGhost(i));
+    }
+    el.appendChild(c);
+  }
+}
+
+function buildHatLane() {
+  const el = document.getElementById('hatLane');
+  el.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell' + (i % 4 === 0 ? ' beat1' : '');
+    c.dataset.step = i;
+    if (isHatStep(i)) {
+      c.classList.add('hit-hat');
+      if (hatDensity === 'sixteenth') c.classList.add('dense');
+    }
+    el.appendChild(c);
+  }
+}
+
+function isHatStep(step) {
+  if (hatDensity === 'quarter')    return step % 4 === 0;
+  if (hatDensity === 'eighth')     return step % 2 === 0;
+  if (hatDensity === 'sixteenth')  return true;
+  return false;
+}
+
+function toggleGhost(step) {
+  if (ghostSteps.has(step)) ghostSteps.delete(step);
+  else ghostSteps.add(step);
+  // clicking a ghost means you've deviated from the preset
+  setPreset(null);
+  buildSnareLane();
+}
+
+function flashStep(step) {
+  document.querySelectorAll('.cell.flash').forEach(c => c.classList.remove('flash'));
+  if (step < 0 || step > 15) return;
+  ['kickLane', 'snareLane', 'hatLane'].forEach(id => {
+    const c = document.querySelector(`#${id} .cell[data-step="${step}"]`);
+    if (c) c.classList.add('flash');
+  });
+}
+
+// ============================================================
+// PRESET / DENSITY HANDLERS
+// ============================================================
+function setPreset(key) {
+  currentPreset = key;
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.preset === key);
+  });
+  if (!key) return;
+  ghostSteps = new Set(PRESETS[key].ghosts);
+  hatDensity = PRESETS[key].density;
+  document.querySelectorAll('.density-opt').forEach(b => {
+    b.classList.toggle('active', b.dataset.density === hatDensity);
+  });
+  buildSnareLane();
+  buildHatLane();
+}
+
+document.querySelectorAll('.preset-btn').forEach(b => {
+  b.addEventListener('click', () => setPreset(b.dataset.preset));
+});
+
+document.querySelectorAll('.density-opt').forEach(b => {
+  b.addEventListener('click', () => {
+    hatDensity = b.dataset.density;
+    document.querySelectorAll('.density-opt').forEach(bb => {
+      bb.classList.toggle('active', bb.dataset.density === hatDensity);
+    });
+    setPreset(null); // diverged from preset if user changes density manually
+    buildHatLane();
+  });
+});
+
+// ============================================================
+// AUDIO
+// ============================================================
+function buildAudio() {
+  master = new Tone.Gain(0.8).toDestination();
+  const rev = new Tone.Reverb({ decay: 1.6, wet: 0.14 }).connect(master);
+  const comp = new Tone.Compressor({ threshold: -15, ratio: 3 }).connect(rev);
+
+  kick = new Tone.MembraneSynth({
+    pitchDecay: 0.04, octaves: 6,
+    envelope: { attack: 0.001, decay: 0.32, sustain: 0, release: 0.4 },
+    volume: -4
+  }).connect(comp);
+
+  snare = new Tone.NoiseSynth({
+    noise: { type: 'white' },
+    envelope: { attack: 0.001, decay: 0.17, sustain: 0, release: 0.2 },
+    volume: -12
+  }).connect(comp);
+
+  hat = new Tone.MetalSynth({
+    frequency: 400,
+    envelope: { attack: 0.001, decay: 0.06, release: 0.01 },
+    harmonicity: 5.1, modulationIndex: 32,
+    resonance: 4000, octaves: 1.5,
+    volume: -30
+  }).connect(comp);
+
+  rhodes = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.02, decay: 0.8, sustain: 0.3, release: 1.4 },
+    volume: -16
+  }).connect(rev);
+
+  Tone.Transport.bpm.value = parseInt(document.getElementById('tempo').value, 10);
+}
+
+function scheduleLoop() {
+  if (loop) { loop.dispose(); loop = null; }
+  loop = new Tone.Loop((time) => {
+    const pos = Tone.Transport.position.toString().split(':');
+    const beat = parseInt(pos[1], 10);
+    const six  = Math.floor(parseFloat(pos[2]));
+    const step = (beat * 4 + six) % 16;
+
+    if (KICK_MAIN.has(step)) {
+      kick.triggerAttackRelease('C1', '8n', time, 0.95);
+    }
+    if (SNARE_MAIN.has(step)) {
+      snare.triggerAttackRelease('16n', time, 0.9);
+    } else if (ghostSteps.has(step)) {
+      // Ghost — low velocity
+      snare.triggerAttackRelease('32n', time, 0.22);
+    }
+    if (isHatStep(step)) {
+      const vel = (hatDensity === 'sixteenth' && step % 2 !== 0) ? 0.22 : 0.36;
+      hat.triggerAttackRelease('16n', time, vel);
+    }
+
+    if (step === 0) {
+      // Dmi9 pad — a warm neo-soul chord
+      rhodes.triggerAttackRelease(['D3', 'F3', 'A3', 'C4', 'E4'], '1n', time, 0.45);
+    }
+
+    Tone.Draw.schedule(() => flashStep(step), time);
+  }, '16n').start(0);
+}
+
+// ============================================================
+// TRANSPORT
+// ============================================================
+document.getElementById('startBtn').addEventListener('click', async () => {
+  if (!audioReady) {
+    await Tone.start();
+    buildAudio();
+    scheduleLoop();
+    audioReady = true;
+  }
+  Tone.Transport.start();
+  isPlaying = true;
+  const s = document.getElementById('statusLabel');
+  s.textContent = 'playing';
+  s.classList.add('on');
+});
+
+document.getElementById('stopBtn').addEventListener('click', () => {
+  if (!audioReady) return;
+  Tone.Transport.stop();
+  Tone.Transport.position = 0;
+  isPlaying = false;
+  flashStep(-1);
+  const s = document.getElementById('statusLabel');
+  s.textContent = 'idle';
+  s.classList.remove('on');
+});
+
+document.getElementById('tempo').addEventListener('input', e => {
+  const v = parseInt(e.target.value, 10);
+  document.getElementById('tempoVal').textContent = v + ' BPM';
+  if (audioReady) Tone.Transport.bpm.rampTo(v, 0.1);
+});
+
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (master) master.gain.rampTo(v, 0.05);
+});
+
+// ============================================================
+// PROGRESS
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-rhythm';
+function loadProgress() { try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (e) { return {}; } }
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const progress = loadProgress();
+const completeBtn = document.getElementById('markComplete');
+const banner = document.getElementById('completeBanner');
+
+if (progress.lesson3 === 'complete') {
+  completeBtn.textContent = 'Lesson 3 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+}
+
+completeBtn.addEventListener('click', () => {
+  if (progress.lesson3 === 'complete') return;
+  progress.lesson3 = 'complete';
+  progress.lesson3CompletedAt = new Date().toISOString();
+  saveProgress(progress);
+  completeBtn.textContent = 'Lesson 3 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+buildKickLane();
+buildSnareLane();
+buildHatLane();
+</script>
+</body>
+</html>

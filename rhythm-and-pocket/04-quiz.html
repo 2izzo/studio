@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Snap Quiz: Name That Feel</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --red: #c75d5d;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 20px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover:not(:disabled) { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  /* SCORE BAR */
+  .scorebar {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+    font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px;
+  }
+  .scorebar strong { color: var(--warm); font-size: 14px; font-weight: 400; }
+
+  .progress-dots { display: flex; gap: 6px; margin-bottom: 18px; }
+  .dot {
+    width: 24px; height: 6px; border-radius: 2px; background: #2a2434;
+  }
+  .dot.correct  { background: var(--green); }
+  .dot.wrong    { background: var(--red); }
+  .dot.current  { background: var(--warm); }
+
+  /* QUESTION BIG PANEL */
+  .q-panel { text-align: center; padding: 32px 20px; }
+  .q-prompt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 12px; }
+  .q-title { font-size: 20px; color: var(--ink); margin-bottom: 22px; }
+  .play-btn { padding: 14px 34px; font-size: 14px; letter-spacing: 2px; }
+
+  .choices {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin: 20px 0;
+  }
+  .choice {
+    padding: 20px 14px; text-align: center; border: 1px solid var(--grid);
+    border-radius: 6px; background: var(--panel-2); cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit; color: var(--ink);
+  }
+  .choice:hover:not(:disabled) { border-color: var(--warm); color: var(--warm); }
+  .choice:disabled { cursor: not-allowed; }
+  .choice .name { font-size: 16px; letter-spacing: 1px; }
+  .choice .hint { font-size: 11px; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 1.5px; }
+
+  .choice.correct {
+    border-color: var(--green); background: rgba(143,185,156,0.12); color: var(--green);
+  }
+  .choice.wrong {
+    border-color: var(--red); background: rgba(199,93,93,0.12); color: var(--red);
+  }
+  .choice.reveal {
+    border-color: var(--green); color: var(--green); opacity: 0.75;
+  }
+
+  /* RESULT PANEL */
+  .result { display: none; text-align: center; padding: 32px; }
+  .result.show { display: block; }
+  .result .score-big {
+    font-size: 64px; color: var(--warm); font-weight: 400; margin: 10px 0;
+    line-height: 1;
+  }
+  .result.pass .score-big { color: var(--green); }
+  .result .blurb { color: var(--muted); font-size: 13px; max-width: 480px; margin: 10px auto 20px; line-height: 1.7; }
+  .result .actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+  .lesson-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; font-size: 12px; color: var(--muted); }
+
+  .explain {
+    margin-top: 16px; padding: 14px 18px; background: var(--panel-deep);
+    border-radius: 6px; border-left: 2px solid var(--warm);
+    font-size: 13px; color: var(--ink); line-height: 1.6;
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain em { color: var(--accent); font-style: normal; }
+  .explain strong { color: var(--warm); font-weight: 400; }
+</style>
+</head>
+<body>
+
+<nav class="lesson-nav">
+  <a href="03-ghosts.html">← Prev: Ghost Notes</a>
+  <span>Lesson 4 of 4 — Snap Quiz</span>
+  <a href="index.html">Back to Module →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, var(--panel-hi), var(--panel)); border:1px solid var(--warm); border-radius:6px; padding:14px 18px; margin-bottom:20px; color:var(--warm); font-size:13px;">
+  ✓ Snap Quiz passed. <a href="index.html" style="color:var(--accent);">Back to module →</a>
+</div>
+
+<h1>~ Snap Quiz — Name That Feel ~</h1>
+<p class="sub">Ten rounds. I play a two-bar groove in a random feel. You pick: straight, swing, or shuffle. No penalty for guessing, no timer, no sharp edges. Get seven right and the module earns its ✓.</p>
+
+<!-- Score bar -->
+<div class="scorebar">
+  <span><strong id="roundNum">0</strong> of 10</span>
+  <span><strong id="correctCount">0</strong> correct</span>
+  <span><strong id="incorrectCount">0</strong> wrong</span>
+  <span id="bestLabel">best: —</span>
+</div>
+<div class="progress-dots" id="dots"></div>
+
+<!-- Main quiz panel -->
+<div class="panel q-panel" id="quizPanel">
+  <div class="q-prompt">Round <span id="roundLabel">1</span> of 10</div>
+  <div class="q-title">What feel is this?</div>
+  <button id="playBtn" class="primary play-btn">▶ play the groove</button>
+
+  <div class="choices" id="choices">
+    <button class="choice" data-feel="straight" disabled>
+      <div class="name">STRAIGHT</div>
+      <div class="hint">tight, on-the-grid</div>
+    </button>
+    <button class="choice" data-feel="swing" disabled>
+      <div class="name">SWING</div>
+      <div class="hint">long short long short</div>
+    </button>
+    <button class="choice" data-feel="shuffle" disabled>
+      <div class="name">SHUFFLE</div>
+      <div class="hint">triplets — DA . da</div>
+    </button>
+  </div>
+
+  <div class="explain" id="explain"></div>
+
+  <div style="margin-top: 18px; display: flex; justify-content: center; gap: 10px;">
+    <button id="replayBtn" disabled>↻ play again</button>
+    <button id="nextBtn" disabled>next round →</button>
+  </div>
+</div>
+
+<!-- Result panel -->
+<div class="panel result" id="resultPanel">
+  <div id="resultTitle" class="q-prompt">Your Result</div>
+  <div class="score-big" id="scoreBig">0 / 10</div>
+  <div class="blurb" id="resultBlurb"></div>
+  <div class="actions">
+    <button id="retakeBtn" class="primary">↻ Retake</button>
+    <a href="index.html"><button>← Back to Module</button></a>
+  </div>
+  <div style="margin-top: 24px;">
+    <button id="markCompleteBtn" class="complete-btn" disabled>Mark Module Passed ✓</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FEEL DEFS — identical to Lesson 1, reused
+// ============================================================
+const FEELS = {
+  straight: {
+    label: 'STRAIGHT',
+    hatCells: [0, 2, 4, 6, 8, 10, 12, 14],
+    swing: 0,
+    hatDivision: '8n',
+    explainer: 'Even 8ths. Every subdivision gets equal weight. <em>Tick tick tick tick.</em>'
+  },
+  swing: {
+    label: 'SWING',
+    hatCells: [0, 2, 4, 6, 8, 10, 12, 14],
+    swing: 0.58,
+    hatDivision: '8n',
+    explainer: 'Uneven 8ths. The "and" of each beat gets pushed late. <em>Long short long short.</em>'
+  },
+  shuffle: {
+    label: 'SHUFFLE',
+    hatCells: [0, 3, 4, 7, 8, 11, 12, 15],
+    swing: 0,
+    hatDivision: '8t',
+    explainer: 'Triplet 8ths. The beat splits in three instead of two. <em>DA . da, DA . da.</em>'
+  }
+};
+const FEEL_KEYS = Object.keys(FEELS);
+
+// ============================================================
+// STATE
+// ============================================================
+const TOTAL_ROUNDS = 10;
+const PASS_SCORE = 7;
+
+let round = 0;
+let correct = 0;
+let wrong = 0;
+let currentFeel = null;
+let answered = false;
+let audioReady = false;
+let results = []; // 'correct' | 'wrong' | 'pending'
+
+let kick, snare, hat, rhodes, master;
+let loop;
+let hatLoop;
+let playing = false;
+
+// ============================================================
+// AUDIO SETUP
+// ============================================================
+async function ensureAudio() {
+  if (audioReady) return;
+  await Tone.start();
+  master = new Tone.Gain(0.85).toDestination();
+  const rev = new Tone.Reverb({ decay: 1.4, wet: 0.1 }).connect(master);
+  const comp = new Tone.Compressor({ threshold: -16, ratio: 3 }).connect(rev);
+
+  kick = new Tone.MembraneSynth({
+    pitchDecay: 0.04, octaves: 6,
+    envelope: { attack: 0.001, decay: 0.32, sustain: 0, release: 0.4 },
+    volume: -4
+  }).connect(comp);
+
+  snare = new Tone.NoiseSynth({
+    noise: { type: 'white' },
+    envelope: { attack: 0.001, decay: 0.17, sustain: 0, release: 0.2 },
+    volume: -12
+  }).connect(comp);
+
+  hat = new Tone.MetalSynth({
+    frequency: 400,
+    envelope: { attack: 0.001, decay: 0.06, release: 0.01 },
+    harmonicity: 5.1, modulationIndex: 32,
+    resonance: 4000, octaves: 1.5,
+    volume: -28
+  }).connect(comp);
+
+  rhodes = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.02, decay: 0.8, sustain: 0.3, release: 1.4 },
+    volume: -16
+  }).connect(rev);
+
+  Tone.Transport.bpm.value = 88;
+  audioReady = true;
+}
+
+function schedulePattern(feelKey) {
+  cancelLoops();
+  const feel = FEELS[feelKey];
+  Tone.Transport.swing = feel.swing;
+  Tone.Transport.swingSubdivision = '8n';
+
+  const KICK  = [0, 8];
+  const SNARE = [4, 12];
+
+  loop = new Tone.Loop((time) => {
+    const pos = Tone.Transport.position.toString().split(':');
+    const beat = parseInt(pos[1], 10);
+    const six  = Math.floor(parseFloat(pos[2]));
+    const step = (beat * 4 + six) % 16;
+    if (KICK.includes(step))  kick.triggerAttackRelease('C1', '8n', time, 0.95);
+    if (SNARE.includes(step)) snare.triggerAttackRelease('16n', time, 0.8);
+    if (step === 0) {
+      // Random-feel-friendly chord: Cmaj9
+      rhodes.triggerAttackRelease(['C4', 'E4', 'G4', 'B4', 'D5'], '1n', time, 0.42);
+    }
+  }, '16n').start(0);
+
+  hatLoop = new Tone.Loop((time) => {
+    hat.triggerAttackRelease('16n', time, 0.34);
+  }, feel.hatDivision).start(0);
+}
+
+function cancelLoops() {
+  if (loop)    { loop.dispose();    loop = null; }
+  if (hatLoop) { hatLoop.dispose(); hatLoop = null; }
+}
+
+async function playGroove(feelKey) {
+  await ensureAudio();
+  if (playing) { stopGroove(); await new Promise(r => setTimeout(r, 80)); }
+  Tone.Transport.stop();
+  Tone.Transport.position = 0;
+  schedulePattern(feelKey);
+  Tone.Transport.start();
+  playing = true;
+
+  // Play for 2 bars (~5.5s at 88 BPM), then stop
+  setTimeout(() => {
+    stopGroove();
+  }, (60 / Tone.Transport.bpm.value) * 4 * 2 * 1000 + 50);
+}
+
+function stopGroove() {
+  if (!audioReady) return;
+  Tone.Transport.stop();
+  cancelLoops();
+  playing = false;
+}
+
+// ============================================================
+// ROUND FLOW
+// ============================================================
+const playBtn     = document.getElementById('playBtn');
+const replayBtn   = document.getElementById('replayBtn');
+const nextBtn     = document.getElementById('nextBtn');
+const choices     = document.querySelectorAll('.choice');
+const explain     = document.getElementById('explain');
+const quizPanel   = document.getElementById('quizPanel');
+const resultPanel = document.getElementById('resultPanel');
+
+function renderDots() {
+  const dots = document.getElementById('dots');
+  dots.innerHTML = '';
+  for (let i = 0; i < TOTAL_ROUNDS; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    if (results[i] === 'correct') d.classList.add('correct');
+    else if (results[i] === 'wrong') d.classList.add('wrong');
+    else if (i === round) d.classList.add('current');
+    dots.appendChild(d);
+  }
+}
+
+function updateScorebar() {
+  document.getElementById('roundNum').textContent = Math.min(round + 1, TOTAL_ROUNDS);
+  document.getElementById('correctCount').textContent = correct;
+  document.getElementById('incorrectCount').textContent = wrong;
+  document.getElementById('roundLabel').textContent = Math.min(round + 1, TOTAL_ROUNDS);
+
+  const best = loadBest();
+  if (best != null) document.getElementById('bestLabel').textContent = 'best: ' + best + '/10';
+}
+
+function startRound() {
+  if (round >= TOTAL_ROUNDS) { finish(); return; }
+
+  currentFeel = FEEL_KEYS[Math.floor(Math.random() * FEEL_KEYS.length)];
+  answered = false;
+  playBtn.disabled = false;
+  playBtn.textContent = '▶ play the groove';
+  choices.forEach(c => {
+    c.disabled = true;
+    c.classList.remove('correct', 'wrong', 'reveal');
+  });
+  replayBtn.disabled = true;
+  nextBtn.disabled = true;
+  explain.classList.remove('show');
+  explain.innerHTML = '';
+
+  if (!results[round]) results[round] = 'pending';
+  renderDots();
+  updateScorebar();
+}
+
+playBtn.addEventListener('click', async () => {
+  playBtn.disabled = true;
+  playBtn.textContent = '(listening...)';
+  await playGroove(currentFeel);
+  // Once it's played, enable choices + replay
+  setTimeout(() => {
+    choices.forEach(c => { c.disabled = answered; });
+    replayBtn.disabled = false;
+    playBtn.textContent = '✓ played — make your pick';
+  }, 600);
+});
+
+replayBtn.addEventListener('click', async () => {
+  replayBtn.disabled = true;
+  await playGroove(currentFeel);
+  setTimeout(() => { replayBtn.disabled = false; }, 600);
+});
+
+choices.forEach(c => {
+  c.addEventListener('click', () => {
+    if (answered) return;
+    answered = true;
+    const pick = c.dataset.feel;
+    const isRight = pick === currentFeel;
+
+    // Visuals
+    if (isRight) {
+      c.classList.add('correct');
+      correct++;
+      results[round] = 'correct';
+    } else {
+      c.classList.add('wrong');
+      // also reveal the correct one
+      document.querySelector(`.choice[data-feel="${currentFeel}"]`).classList.add('reveal');
+      wrong++;
+      results[round] = 'wrong';
+    }
+    choices.forEach(cc => { cc.disabled = true; });
+
+    // Explanation
+    const feel = FEELS[currentFeel];
+    explain.innerHTML = isRight
+      ? `<strong>Right.</strong> That was ${feel.label.toLowerCase()}. ${feel.explainer}`
+      : `<strong>Actually ${feel.label.toLowerCase()}.</strong> ${feel.explainer}`;
+    explain.classList.add('show');
+
+    replayBtn.disabled = false;
+    nextBtn.disabled = false;
+    renderDots();
+    updateScorebar();
+  });
+});
+
+nextBtn.addEventListener('click', () => {
+  stopGroove();
+  round++;
+  if (round >= TOTAL_ROUNDS) {
+    finish();
+  } else {
+    startRound();
+  }
+});
+
+function finish() {
+  stopGroove();
+  quizPanel.style.display = 'none';
+  resultPanel.classList.add('show');
+  const passed = correct >= PASS_SCORE;
+  resultPanel.classList.toggle('pass', passed);
+
+  document.getElementById('scoreBig').textContent = correct + ' / ' + TOTAL_ROUNDS;
+  const title = document.getElementById('resultTitle');
+  const blurb = document.getElementById('resultBlurb');
+  if (passed) {
+    title.textContent = '✓ You passed';
+    blurb.innerHTML = 'Your ear knows straight from swing from shuffle. That\'s the whole game — everything else is practice putting it to work. Go back to Lesson 3 and try layering ghost notes over each feel; you\'ll hear them differently now.';
+  } else {
+    title.textContent = 'Close — try again';
+    blurb.innerHTML = 'You need 7 to pass. If shuffle and swing blurred together, you\'re not alone — they\'re cousins. Revisit Lesson 1, play each preset, and listen for where the hat lands relative to the beat. Your ear will catch up fast.';
+  }
+
+  // Save best
+  const best = loadBest();
+  if (best == null || correct > best) saveBest(correct);
+  document.getElementById('bestLabel').textContent = 'best: ' + loadBest() + '/10';
+
+  // Enable mark-complete if passed
+  const mcBtn = document.getElementById('markCompleteBtn');
+  const progress = loadProgress();
+  if (passed) {
+    mcBtn.disabled = false;
+    if (progress.lesson4 === 'complete') {
+      mcBtn.textContent = 'Module Passed ✓';
+      mcBtn.classList.add('done');
+    }
+  } else {
+    mcBtn.disabled = true;
+  }
+}
+
+document.getElementById('retakeBtn').addEventListener('click', () => {
+  round = 0; correct = 0; wrong = 0;
+  results = [];
+  resultPanel.classList.remove('show', 'pass');
+  quizPanel.style.display = '';
+  startRound();
+});
+
+// ============================================================
+// PROGRESS / BEST SCORE
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-rhythm';
+function loadProgress() { try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (e) { return {}; } }
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+function loadBest() {
+  const p = loadProgress();
+  return p.quizBest != null ? p.quizBest : null;
+}
+function saveBest(n) {
+  const p = loadProgress();
+  p.quizBest = n;
+  saveProgress(p);
+}
+
+const banner = document.getElementById('completeBanner');
+const progressInit = loadProgress();
+if (progressInit.lesson4 === 'complete') {
+  banner.style.display = 'block';
+}
+
+document.getElementById('markCompleteBtn').addEventListener('click', () => {
+  if (correct < PASS_SCORE) return;
+  const p = loadProgress();
+  if (p.lesson4 === 'complete') return;
+  p.lesson4 = 'complete';
+  p.lesson4CompletedAt = new Date().toISOString();
+  saveProgress(p);
+  const b = document.getElementById('markCompleteBtn');
+  b.textContent = 'Module Passed ✓';
+  b.classList.add('done');
+  banner.style.display = 'block';
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderDots();
+updateScorebar();
+startRound();
+</script>
+</body>
+</html>

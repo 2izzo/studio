@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — The Pocket</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 20px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  .transport {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .transport .spacer { flex: 1; }
+  .transport label {
+    color: var(--muted); font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .transport input[type=range] { accent-color: var(--warm); width: 100px; }
+  .status { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .status.on { color: var(--warm); }
+  .nudge-val { color: var(--ink); font-weight: 400; }
+
+  /* POCKET SELECTOR */
+  .pocket-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .pocket-btn {
+    padding: 22px 14px; text-align: center; border: 1px solid var(--grid);
+    border-radius: 6px; background: var(--panel-2); cursor: pointer;
+    transition: all 0.25s;
+  }
+  .pocket-btn:hover { border-color: var(--warm); }
+  .pocket-btn.active {
+    border-color: var(--pocket-color, var(--warm));
+    background: var(--panel-hi);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--pocket-color, var(--warm)) 25%, transparent);
+  }
+  .pocket-name { font-size: 17px; color: var(--ink); margin-bottom: 4px; letter-spacing: 1px; }
+  .pocket-btn.active .pocket-name { color: var(--pocket-color, var(--warm)); }
+  .pocket-offset { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 2px; }
+  .pocket-feel { font-size: 12px; color: var(--muted); font-style: italic; }
+
+  /* MICROTIMING VISUALIZER */
+  .micro {
+    height: 96px; background: var(--panel-deep); border-radius: 6px;
+    position: relative; overflow: hidden; padding: 12px 0;
+  }
+  .micro .grid-line {
+    position: absolute; top: 12px; bottom: 12px; width: 1px;
+    background: var(--grid);
+  }
+  .micro .grid-line.beat {
+    background: var(--muted); opacity: 0.35;
+  }
+  .micro .marker {
+    position: absolute; top: 50%; transform: translate(-50%, -50%);
+    width: 22px; height: 34px; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: var(--bg); letter-spacing: 1px;
+    transition: left 0.25s ease;
+    pointer-events: none;
+  }
+  .micro .marker.kick  { background: var(--warm);  top: 30%; }
+  .micro .marker.snare { background: var(--accent); top: 70%; }
+  .micro .marker.kick::after  { content: 'K'; }
+  .micro .marker.snare::after { content: 'S'; }
+  .micro .label {
+    position: absolute; left: 12px; top: 10px;
+    font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px;
+  }
+  .micro .legend {
+    position: absolute; right: 12px; top: 10px;
+    font-size: 10px; color: var(--muted);
+  }
+  .micro .hairline {
+    position: absolute; top: 62%; height: 18px; width: 2px; background: var(--ink);
+    opacity: 0.9;
+    transition: left 0.25s ease;
+  }
+  .hit-flash { background: var(--ink) !important; box-shadow: 0 0 12px var(--ink); }
+
+  .lesson-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; font-size: 12px; color: var(--muted); }
+
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 10px 0; }
+  .math strong { color: var(--warm); font-weight: 400; }
+  .math em { color: var(--accent); font-style: normal; }
+  .math code { background: var(--panel-deep); padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+  hr.soft { border: none; border-top: 1px solid var(--grid); margin: 20px 0; }
+
+  .advanced {
+    background: var(--panel-deep); border: 1px solid var(--grid); border-radius: 4px;
+    padding: 12px 16px; margin-top: 14px; font-size: 12px; color: var(--muted);
+  }
+  .advanced label { display: flex; align-items: center; gap: 10px; }
+  .advanced input[type=range] { flex: 1; accent-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<nav class="lesson-nav">
+  <a href="01-feel-families.html">← Prev: Feel Families</a>
+  <span>Lesson 2 of 4 — The Pocket</span>
+  <a href="03-ghosts.html">Next: Ghost Notes →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, var(--panel-hi), var(--panel)); border:1px solid var(--warm); border-radius:6px; padding:14px 18px; margin-bottom:20px; color:var(--warm); font-size:13px;">
+  ✓ Lesson 2 marked complete. <a href="index.html" style="color:var(--accent);">Back to module →</a>
+</div>
+
+<h1>~ The Pocket ~</h1>
+<p class="sub">Three drummers, same pattern, played at the same tempo. One sounds <em>urgent</em>, one sounds <em>grounded</em>, one sounds <em>lazy</em> — and the only difference is where the snare lands. Fifteen milliseconds of slide, and the whole song changes its body language.</p>
+
+<!-- Transport -->
+<div class="panel">
+  <div class="transport">
+    <button id="startBtn" class="primary">▶ play</button>
+    <button id="stopBtn">■ stop</button>
+    <label>tempo
+      <input type="range" id="tempo" min="60" max="130" step="1" value="82">
+      <span id="tempoVal" style="width:44px; color:var(--ink);">82 BPM</span>
+    </label>
+    <label>vol
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8">
+      <span id="volVal" style="width:36px; color:var(--ink); text-align:right;">80%</span>
+    </label>
+    <span class="spacer"></span>
+    <span id="statusLabel" class="status">idle</span>
+  </div>
+</div>
+
+<!-- Pocket selector -->
+<h2>Where Does the Snare Live?</h2>
+<div class="panel">
+  <div class="pocket-row">
+    <div class="pocket-btn active" data-pocket="center" style="--pocket-color: var(--warm);">
+      <div class="pocket-name">CENTER</div>
+      <div class="pocket-offset">0 ms · on the grid</div>
+      <div class="pocket-feel">grounded, confident</div>
+    </div>
+    <div class="pocket-btn" data-pocket="push" style="--pocket-color: var(--accent);">
+      <div class="pocket-name">PUSH</div>
+      <div class="pocket-offset">−15 ms · early</div>
+      <div class="pocket-feel">urgent, driving</div>
+    </div>
+    <div class="pocket-btn" data-pocket="pull" style="--pocket-color: var(--green);">
+      <div class="pocket-name">PULL</div>
+      <div class="pocket-offset">+15 ms · late</div>
+      <div class="pocket-feel">relaxed, laid-back</div>
+    </div>
+  </div>
+
+  <div class="advanced">
+    <label>
+      fine tune snare nudge
+      <input type="range" id="nudge" min="-30" max="30" step="1" value="0">
+      <span id="nudgeVal" class="nudge-val" style="width:60px; text-align:right;">0 ms</span>
+    </label>
+  </div>
+</div>
+
+<!-- Microtiming visualizer -->
+<h2>Where The Snare Lands</h2>
+<div class="panel" style="padding:0;">
+  <div class="micro" id="micro">
+    <div class="label">one bar · quarter-note grid</div>
+    <div class="legend" id="legendLabel">snare nudge: 0 ms</div>
+  </div>
+</div>
+
+<!-- The why -->
+<h2>Why Fifteen Milliseconds Matter</h2>
+<div class="panel math">
+  <p><strong>1. The pocket is where your band agrees to meet.</strong> Every drummer has a relationship with the beat — some are early, some are late, most sit right on it. A whole band locks to that drummer's sense of time. When you say "tight" or "loose" or "laid-back," you're describing microtiming — small, consistent offsets of tens of milliseconds.</p>
+
+  <p><strong>2. Pushing ahead feels like urgency.</strong> When the snare lands a hair before the click, your body interprets it as momentum. The drummer is <em>leaning forward</em>. Punk lives here. Early Motown. Anything that needs to feel like it's chasing something. It's why fast music played on-the-grid can still feel polite — it's not the tempo, it's the placement.</p>
+
+  <p><strong>3. Pulling back feels like groove.</strong> A snare a hair behind the click is the entire aesthetic of hip-hop produced after 1990. J Dilla famously nudged snares late by feel (no quantization) and the whole world realized that what they'd called "sloppy" was actually the best groove any of us had ever heard. D'Angelo's <code>Voodoo</code>. The Roots. Radiohead's <code>Idioteque</code>. Laid-back isn't lazy — it's an active choice that makes the music breathe.</p>
+
+  <p><strong>4. The numbers sound absurd. Trust your body anyway.</strong> Fifteen milliseconds is one seventieth of a second. It's impossibly small. And yet: <em>you can feel it</em>. Put your hand on your chest while you flip between push and pull and you'll notice a different muscle want to move. That's the point of this lesson — not to memorize a number, but to trust that your ear already knows the difference between a song that's chasing you and a song you're chasing.</p>
+
+  <p style="color: var(--muted);">Press play. Leave it for a bar. Click PUSH. Notice the body language change. Back to CENTER. Then PULL. The kick never moves. Only the snare. That tiny slide is the difference between three completely different songs.</p>
+
+  <hr class="soft">
+  <p style="color: var(--muted); font-size: 12px; margin-bottom: 8px;">When fifteen milliseconds stops being a number and starts being a posture — when you can feel "early / on / behind" in your body, not just on the screen:</p>
+  <button id="markComplete" class="complete-btn">Mark Lesson 2 Complete ✓</button>
+</div>
+
+<script>
+// ============================================================
+// PATTERN — simple rock beat, 4/4, one bar
+// kick on 1 and 3, snare on 2 and 4, hat every 8th
+// ============================================================
+const KICK_STEPS  = [0, 8];          // 16th positions (0..15) — beats 1, 3
+const SNARE_STEPS = [4, 12];         // beats 2, 4
+const HAT_STEPS   = [0, 2, 4, 6, 8, 10, 12, 14];
+
+const POCKETS = {
+  center: { label: 'CENTER', offset: 0,     color: 'var(--warm)'   },
+  push:   { label: 'PUSH',   offset: -0.015, color: 'var(--accent)' },
+  pull:   { label: 'PULL',   offset:  0.015, color: 'var(--green)'  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let currentPocket = 'center';
+let manualNudgeSec = 0; // set by the fine-tune slider; overrides pocket when non-zero
+let isPlaying = false;
+let audioReady = false;
+
+let kick, snare, hat, rhodes, master;
+let loop;
+
+// ============================================================
+// VISUALIZER (one-bar timeline)
+// ============================================================
+const micro = document.getElementById('micro');
+const legend = document.getElementById('legendLabel');
+
+function buildTimeline() {
+  // 16 grid lines (every 16th), beats 1-4 thicker
+  const padL = 48, padR = 28; // px — approximate; we use % in practice
+  for (let i = 0; i <= 16; i++) {
+    const line = document.createElement('div');
+    line.className = 'grid-line' + (i % 4 === 0 ? ' beat' : '');
+    const pct = (i / 16) * 100;
+    line.style.left = pct + '%';
+    micro.appendChild(line);
+  }
+
+  // Kick markers at steps 0 and 8
+  [0, 8].forEach(step => {
+    const m = document.createElement('div');
+    m.className = 'marker kick';
+    m.style.left = ((step / 16) * 100) + '%';
+    micro.appendChild(m);
+  });
+
+  // Snare markers at steps 4 and 12 (these will move with pocket)
+  [4, 12].forEach(step => {
+    const m = document.createElement('div');
+    m.className = 'marker snare';
+    m.dataset.baseStep = step;
+    m.style.left = ((step / 16) * 100) + '%';
+    micro.appendChild(m);
+  });
+}
+
+function refreshVisualizer() {
+  const offset = (manualNudgeSec !== 0) ? manualNudgeSec : POCKETS[currentPocket].offset;
+  // Visual shift: convert seconds to % of bar (depends on BPM, so we compute at draw time)
+  const bpm = Tone.Transport.bpm.value || parseInt(document.getElementById('tempo').value, 10);
+  const barSec = (60 / bpm) * 4;
+  const shiftPct = (offset / barSec) * 100;
+
+  document.querySelectorAll('.marker.snare').forEach(m => {
+    const baseStep = parseInt(m.dataset.baseStep, 10);
+    const basePct = (baseStep / 16) * 100;
+    m.style.left = (basePct + shiftPct) + '%';
+  });
+
+  const ms = Math.round(offset * 1000);
+  legend.textContent = 'snare nudge: ' + (ms > 0 ? '+' : '') + ms + ' ms';
+}
+
+// ============================================================
+// AUDIO
+// ============================================================
+function buildAudio() {
+  master = new Tone.Gain(0.8).toDestination();
+  const rev = new Tone.Reverb({ decay: 1.6, wet: 0.12 }).connect(master);
+  const comp = new Tone.Compressor({ threshold: -15, ratio: 3 }).connect(rev);
+
+  kick = new Tone.MembraneSynth({
+    pitchDecay: 0.04, octaves: 6,
+    envelope: { attack: 0.001, decay: 0.32, sustain: 0, release: 0.4 },
+    volume: -4
+  }).connect(comp);
+
+  snare = new Tone.NoiseSynth({
+    noise: { type: 'white' },
+    envelope: { attack: 0.001, decay: 0.17, sustain: 0, release: 0.2 },
+    volume: -12
+  }).connect(comp);
+
+  hat = new Tone.MetalSynth({
+    frequency: 400,
+    envelope: { attack: 0.001, decay: 0.06, release: 0.01 },
+    harmonicity: 5.1, modulationIndex: 32,
+    resonance: 4000, octaves: 1.5,
+    volume: -30
+  }).connect(comp);
+
+  rhodes = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.02, decay: 0.8, sustain: 0.3, release: 1.4 },
+    volume: -16
+  }).connect(rev);
+
+  Tone.Transport.bpm.value = parseInt(document.getElementById('tempo').value, 10);
+}
+
+function scheduleLoop() {
+  if (loop) { loop.dispose(); loop = null; }
+  loop = new Tone.Loop((time) => {
+    const pos = Tone.Transport.position.toString().split(':');
+    const beat = parseInt(pos[1], 10);
+    const six  = Math.floor(parseFloat(pos[2]));
+    const step = (beat * 4 + six) % 16;
+
+    if (KICK_STEPS.includes(step)) {
+      kick.triggerAttackRelease('C1', '8n', time, 0.95);
+    }
+    if (SNARE_STEPS.includes(step)) {
+      // Apply pocket offset
+      const offset = (manualNudgeSec !== 0) ? manualNudgeSec : POCKETS[currentPocket].offset;
+      snare.triggerAttackRelease('16n', time + offset, 0.8);
+    }
+    if (HAT_STEPS.includes(step)) {
+      hat.triggerAttackRelease('16n', time, 0.32);
+    }
+
+    if (step === 0) {
+      rhodes.triggerAttackRelease(['E3', 'A3', 'C4', 'E4'], '1n', time, 0.5); // Am7 — a warmer pad
+    }
+  }, '16n').start(0);
+}
+
+// ============================================================
+// POCKET SWITCHING
+// ============================================================
+document.querySelectorAll('.pocket-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    currentPocket = b.dataset.pocket;
+    manualNudgeSec = 0;
+    document.getElementById('nudge').value = 0;
+    document.getElementById('nudgeVal').textContent = '0 ms';
+    document.querySelectorAll('.pocket-btn').forEach(bb => {
+      bb.classList.toggle('active', bb.dataset.pocket === currentPocket);
+    });
+    refreshVisualizer();
+  });
+});
+
+document.getElementById('nudge').addEventListener('input', e => {
+  const ms = parseInt(e.target.value, 10);
+  manualNudgeSec = ms / 1000;
+  document.getElementById('nudgeVal').textContent = (ms > 0 ? '+' : '') + ms + ' ms';
+  // Fine-tune overrides the pocket button visuals: deactivate all
+  if (ms !== 0) {
+    document.querySelectorAll('.pocket-btn').forEach(bb => bb.classList.remove('active'));
+  } else {
+    // Snap back to whichever pocket matches
+    document.querySelectorAll('.pocket-btn').forEach(bb => {
+      bb.classList.toggle('active', bb.dataset.pocket === currentPocket);
+    });
+  }
+  refreshVisualizer();
+});
+
+// ============================================================
+// TRANSPORT
+// ============================================================
+document.getElementById('startBtn').addEventListener('click', async () => {
+  if (!audioReady) {
+    await Tone.start();
+    buildAudio();
+    scheduleLoop();
+    audioReady = true;
+  }
+  Tone.Transport.start();
+  isPlaying = true;
+  const s = document.getElementById('statusLabel');
+  s.textContent = 'playing · pocket: ' + (manualNudgeSec !== 0 ? 'manual' : POCKETS[currentPocket].label.toLowerCase());
+  s.classList.add('on');
+});
+
+document.getElementById('stopBtn').addEventListener('click', () => {
+  if (!audioReady) return;
+  Tone.Transport.stop();
+  Tone.Transport.position = 0;
+  isPlaying = false;
+  const s = document.getElementById('statusLabel');
+  s.textContent = 'idle';
+  s.classList.remove('on');
+});
+
+document.getElementById('tempo').addEventListener('input', e => {
+  const v = parseInt(e.target.value, 10);
+  document.getElementById('tempoVal').textContent = v + ' BPM';
+  if (audioReady) Tone.Transport.bpm.rampTo(v, 0.1);
+  refreshVisualizer();
+});
+
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (master) master.gain.rampTo(v, 0.05);
+});
+
+// ============================================================
+// PROGRESS
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-rhythm';
+function loadProgress() { try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (e) { return {}; } }
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const progress = loadProgress();
+const completeBtn = document.getElementById('markComplete');
+const banner = document.getElementById('completeBanner');
+
+if (progress.lesson2 === 'complete') {
+  completeBtn.textContent = 'Lesson 2 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+}
+
+completeBtn.addEventListener('click', () => {
+  if (progress.lesson2 === 'complete') return;
+  progress.lesson2 = 'complete';
+  progress.lesson2CompletedAt = new Date().toISOString();
+  saveProgress(progress);
+  completeBtn.textContent = 'Lesson 2 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+buildTimeline();
+refreshVisualizer();
+</script>
+</body>
+</html>

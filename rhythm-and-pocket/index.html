@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Module 3: Rhythm &amp; Pocket</title>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+    --lock: #4a4252;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .kicker { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 3px; }
+  h1 { font-weight: 400; font-size: 32px; margin: 4px 0 8px; color: var(--warm); }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; max-width: 680px; }
+  h2 { font-weight: 400; font-size: 12px; margin: 28px 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+
+  .progress-wrap { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 16px 20px; margin-bottom: 24px; }
+  .progress-stats { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .progress-stats strong { color: var(--warm); font-size: 14px; }
+  .progress-bar { background: #14111a; height: 6px; border-radius: 3px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--warm), var(--accent)); height: 100%; transition: width 0.5s ease; }
+
+  .grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .path { display: flex; flex-direction: column; gap: 0; position: relative; }
+  .lesson {
+    display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center;
+    padding: 18px 20px;
+    background: var(--panel); border: 1px solid var(--grid); border-radius: 6px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .lesson:hover { border-color: var(--warm); }
+  .lesson.complete { border-color: var(--green); }
+  .lesson.current { border-color: var(--warm); box-shadow: 0 0 24px rgba(212,163,115,0.15); }
+
+  .lesson-num {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--panel-2); border: 2px solid var(--grid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--muted);
+  }
+  .lesson.complete .lesson-num { background: var(--green); color: var(--bg); border-color: var(--green); }
+  .lesson.current .lesson-num { border-color: var(--warm); color: var(--warm); }
+
+  .lesson-body h3 { margin: 0 0 4px; font-weight: 400; font-size: 16px; color: var(--ink); }
+  .lesson-body p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .lesson-body .tags { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 2px 8px; background: #14111a; border-radius: 10px; color: var(--muted); }
+
+  .lesson-action {
+    padding: 10px 18px; border: 1px solid var(--grid); border-radius: 4px;
+    background: transparent; color: var(--muted); font-family: inherit; font-size: 12px;
+    text-decoration: none; white-space: nowrap;
+  }
+  .lesson .lesson-action { border-color: var(--warm); color: var(--warm); }
+  .lesson .lesson-action:hover { background: var(--warm); color: var(--bg); }
+  .lesson.complete .lesson-action { border-color: var(--green); color: var(--green); }
+  .lesson.complete .lesson-action:hover { background: var(--green); color: var(--bg); }
+
+  .capstone { margin-top: 20px; padding: 24px; background: linear-gradient(135deg, #1f1a28, #241e2d); border: 1px dashed var(--warm); border-radius: 6px; text-align: center; }
+  .capstone.locked { border-color: var(--grid); border-style: dashed; opacity: 0.6; }
+  .capstone h3 { color: var(--warm); margin: 0 0 6px; font-weight: 400; font-size: 18px; }
+  .capstone p { color: var(--muted); margin: 0 0 14px; font-size: 12px; }
+  .capstone-btn {
+    display: inline-block; padding: 12px 28px; border-radius: 4px;
+    background: var(--warm); color: var(--bg); text-decoration: none;
+    font-size: 13px; letter-spacing: 1px;
+  }
+  .capstone-btn:hover { background: var(--accent); color: var(--bg); }
+  .capstone.locked .capstone-btn { background: var(--lock); color: var(--muted); cursor: not-allowed; pointer-events: none; }
+
+  .sidebar { display: flex; flex-direction: column; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 18px; }
+  .card h4 { margin: 0 0 12px; font-weight: 400; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .skill-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+  .skill-list li { padding: 6px 0; border-bottom: 1px solid var(--grid); color: var(--muted); }
+  .skill-list li:last-child { border-bottom: none; }
+  .skill-list li.unlocked { color: var(--green); }
+  .skill-list li.unlocked::before { content: '✓ '; color: var(--green); }
+  .skill-list li:not(.unlocked)::before { content: '○ '; color: var(--lock); }
+
+  .glossary details { border-bottom: 1px solid var(--grid); padding: 8px 0; }
+  .glossary details:last-child { border-bottom: none; }
+  .glossary summary { cursor: pointer; color: var(--warm); font-size: 12px; list-style: none; }
+  .glossary summary::-webkit-details-marker { display: none; }
+  .glossary summary::before { content: '▸ '; transition: transform 0.2s; display: inline-block; }
+  .glossary details[open] summary::before { content: '▾ '; }
+  .glossary-def { margin-top: 6px; padding: 6px 0 4px 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .glossary-def code { color: var(--warm); background: #14111a; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+  .prereq { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+  .prereq a { color: var(--accent); }
+
+  .reset-link { font-size: 10px; color: var(--lock); text-align: center; display: block; margin-top: 20px; cursor: pointer; }
+  .reset-link:hover { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="kicker">Studio · Module 3</div>
+    <h1>Rhythm &amp; Pocket</h1>
+  </div>
+</div>
+<p class="sub">Same notes, same chords — different <em>feel</em>. Learn what makes a drum pattern sound like a machine vs. a person. Straight, swing, shuffle. Push, center, pull. Ghost notes and whispered hits. The invisible choices that turn time into groove.</p>
+<p class="prereq">Prereq (optional): <a href="../chord-progressions/01-lofi-lab.html">Module 1 — Chord Progressions</a> gives you the harmony; this module gives it a body.</p>
+
+<div class="progress-wrap">
+  <div class="progress-stats">
+    <span><strong id="completedCount">0</strong> of 4 lessons complete</span>
+    <span id="quizStats">Capstone: not attempted</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+
+<div class="grid">
+  <div>
+    <h2>The Path</h2>
+
+    <a href="01-feel-families.html" class="lesson" id="lesson1" data-lesson="1">
+      <div class="lesson-num">1</div>
+      <div class="lesson-body">
+        <h3>Feel Families</h3>
+        <p>Same kick, same snare, same Rhodes chord. Flip between straight, swing, and shuffle and hear three different songs. The hat is the personality.</p>
+        <div class="tags">
+          <span class="tag">straight 8ths</span>
+          <span class="tag">swing</span>
+          <span class="tag">shuffle triplets</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="02-the-pocket.html" class="lesson" id="lesson2" data-lesson="2">
+      <div class="lesson-num">2</div>
+      <div class="lesson-body">
+        <h3>The Pocket</h3>
+        <p>Fifteen milliseconds of slide on the snare is the difference between a song that's chasing you and a song you're chasing. Push, center, pull.</p>
+        <div class="tags">
+          <span class="tag">microtiming</span>
+          <span class="tag">±15ms</span>
+          <span class="tag">J Dilla laid-back</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="03-ghosts.html" class="lesson" id="lesson3" data-lesson="3">
+      <div class="lesson-num">3</div>
+      <div class="lesson-body">
+        <h3>Ghost Notes</h3>
+        <p>A drum machine plays every note at the same volume. A human does not. Click cells to add whispered snares; hear the pattern wake up and breathe.</p>
+        <div class="tags">
+          <span class="tag">dynamics</span>
+          <span class="tag">funk · dilla · dnb</span>
+          <span class="tag">hat density</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="04-quiz.html" class="lesson" id="lesson4" data-lesson="4">
+      <div class="lesson-num">4</div>
+      <div class="lesson-body">
+        <h3>Snap Quiz — Name That Feel</h3>
+        <p>Ten random grooves. Pick straight, swing, or shuffle. Seven out of ten passes. Your ear is the only tool you need.</p>
+        <div class="tags">
+          <span class="tag">ear training</span>
+          <span class="tag">feel ID</span>
+          <span class="tag">score tracking</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <div class="capstone" id="capstone">
+      <h3 id="capstoneTitle">✦ Module Capstone</h3>
+      <p id="capstoneText">Complete the first three lessons to unlock the Snap Quiz. Pass it, and this module earns its ✓.</p>
+      <a href="04-quiz.html" class="capstone-btn" id="capstoneBtn">Take the Quiz</a>
+    </div>
+  </div>
+
+  <div class="sidebar">
+
+    <div class="card">
+      <h4>What You Can Do</h4>
+      <ul class="skill-list" id="skillList">
+        <li data-unlock="1">Tell straight from swing from shuffle by ear</li>
+        <li data-unlock="1">Hear the hat as the "personality" of a groove</li>
+        <li data-unlock="2">Feel 15ms of microtiming in your body</li>
+        <li data-unlock="2">Distinguish "pushed" from "pulled" drumming</li>
+        <li data-unlock="3">Hear dynamics — ghost notes — as a musical device</li>
+        <li data-unlock="3">Build a groove by layering hat density over a backbone</li>
+        <li data-unlock="4">Identify feel by ear in a random pattern</li>
+      </ul>
+    </div>
+
+    <div class="card glossary">
+      <h4>Glossary</h4>
+      <details>
+        <summary>Feel</summary>
+        <div class="glossary-def">The rhythmic character of a groove — how the subdivisions are placed in time. Straight, swing, and shuffle are the three families. Same kick and snare, different feel = different song.</div>
+      </details>
+      <details>
+        <summary>Straight</summary>
+        <div class="glossary-def">Even 8ths or 16ths. Each subdivision gets equal time. The "on-the-grid" feel of rock, pop, EDM, and most drum machines.</div>
+      </details>
+      <details>
+        <summary>Swing</summary>
+        <div class="glossary-def">Uneven 8ths. The "and" of each beat is played late, closer to the next downbeat. Long-short-long-short. Jazz, hip-hop, neo-soul all live here. <code>Tone.Transport.swing</code>.</div>
+      </details>
+      <details>
+        <summary>Shuffle</summary>
+        <div class="glossary-def">Triplet 8ths. The beat divides into three equal parts and the hat rides on 1 and 3. <code>DA . da</code>. Blues, Motown, shuffle-rock.</div>
+      </details>
+      <details>
+        <summary>Pocket</summary>
+        <div class="glossary-def">Where a drummer's hits sit relative to the click. Ahead = pushed = urgent. Behind = pulled = laid-back. Dead-center = grounded. Usually ±5–25 ms.</div>
+      </details>
+      <details>
+        <summary>Microtiming</summary>
+        <div class="glossary-def">Small, intentional deviations from the grid — tens of milliseconds. Invisible on paper, massive to your body. The thing that makes human drummers sound like themselves.</div>
+      </details>
+      <details>
+        <summary>Ghost note</summary>
+        <div class="glossary-def">A quiet snare hit between the main ones, usually at 20–30% velocity. Makes the main hits feel louder by contrast and gives the groove a human breath.</div>
+      </details>
+      <details>
+        <summary>Hat density</summary>
+        <div class="glossary-def">How many hi-hat hits per beat: quarters = open, 8ths = rock, 16ths = drum &amp; bass / boom-bap. Same pattern, different weather.</div>
+      </details>
+      <details>
+        <summary>J Dilla feel</summary>
+        <div class="glossary-def">The unquantized, humanly-nudged drum sound Dilla built by programming each hit by feel instead of on the grid. The DNA of neo-soul and modern hip-hop.</div>
+      </details>
+    </div>
+
+    <span class="reset-link" id="resetLink">reset module progress</span>
+  </div>
+</div>
+
+<script>
+const PROGRESS_KEY = 'rizzo-studio-rhythm';
+const LESSONS = [1, 2, 3, 4];
+
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+function render() {
+  const p = loadProgress();
+  let completed = 0;
+  let firstIncomplete = null;
+
+  LESSONS.forEach(n => {
+    const el = document.getElementById('lesson' + n);
+    el.classList.remove('complete', 'current');
+
+    const isComplete = p['lesson' + n] === 'complete';
+    if (isComplete) {
+      completed++;
+      el.classList.add('complete');
+      el.querySelector('.lesson-action').textContent = 'review';
+    } else if (!firstIncomplete) {
+      firstIncomplete = n;
+      el.classList.add('current');
+      el.querySelector('.lesson-action').textContent = '▶ open';
+    } else {
+      el.querySelector('.lesson-action').textContent = '▶ open';
+    }
+  });
+
+  document.getElementById('completedCount').textContent = completed;
+  document.getElementById('progressFill').style.width = (completed / 4 * 100) + '%';
+
+  const gateReady = p.lesson1 === 'complete' && p.lesson2 === 'complete' && p.lesson3 === 'complete';
+  const capstone = document.getElementById('capstone');
+  const capText = document.getElementById('capstoneText');
+  const capTitle = document.getElementById('capstoneTitle');
+  if (p.lesson4 === 'complete') {
+    capstone.classList.remove('locked');
+    capTitle.textContent = '✓ Module Complete';
+    capText.innerHTML = `You passed the Snap Quiz — best: <strong style="color:var(--green)">${p.quizBest || '?'}/10</strong>. Retake anytime.`;
+    document.getElementById('capstoneBtn').textContent = 'Retake Quiz';
+  } else if (gateReady) {
+    capstone.classList.remove('locked');
+    capText.textContent = 'All three lessons walked. The Snap Quiz is unlocked.';
+  } else {
+    capstone.classList.add('locked');
+    const need = LESSONS.slice(0, 3).filter(n => p['lesson' + n] !== 'complete');
+    capText.textContent = `Complete lesson${need.length > 1 ? 's' : ''} ${need.join(', ')} to unlock the Snap Quiz.`;
+  }
+
+  const quizStats = document.getElementById('quizStats');
+  if (p.quizBest != null) {
+    quizStats.textContent = `Capstone best: ${p.quizBest}/10`;
+  }
+
+  document.querySelectorAll('#skillList li').forEach(li => {
+    const requires = parseInt(li.dataset.unlock, 10);
+    if (p['lesson' + requires] === 'complete') li.classList.add('unlocked');
+    else li.classList.remove('unlocked');
+  });
+}
+
+document.getElementById('resetLink').addEventListener('click', () => {
+  if (confirm('Reset module progress? This clears completed lessons and quiz scores.')) {
+    localStorage.removeItem(PROGRESS_KEY);
+    render();
+  }
+});
+
+render();
+window.addEventListener('focus', render);
+</script>
+
+</body>
+</html>
