@@ -12,5 +12,6 @@
 *.log
 .scratch/
 
-# Deployment helper (contains PAT path, not meant to be public)
+# Deployment helpers (reference PAT path, not meant to be public)
 BOOTSTRAP.sh
+SHIP-*.sh

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Feel Families</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 20px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  /* TRANSPORT BAR */
+  .transport {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .transport .spacer { flex: 1; }
+  .transport label {
+    color: var(--muted); font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .transport input[type=range] { accent-color: var(--warm); width: 100px; }
+  .status { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .status.on { color: var(--warm); }
+
+  /* FEEL SELECTOR — three big buttons */
+  .feel-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 0;
+  }
+  .feel-btn {
+    padding: 22px 16px; text-align: center; border: 1px solid var(--grid);
+    border-radius: 6px; background: var(--panel-2); cursor: pointer;
+    transition: all 0.25s;
+  }
+  .feel-btn:hover { border-color: var(--warm); }
+  .feel-btn.active {
+    border-color: var(--feel-color, var(--warm));
+    background: var(--panel-hi);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--feel-color, var(--warm)) 25%, transparent);
+  }
+  .feel-name { font-size: 18px; color: var(--ink); margin-bottom: 4px; letter-spacing: 1px; }
+  .feel-btn.active .feel-name { color: var(--feel-color, var(--warm)); }
+  .feel-sub { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .feel-blurb { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+
+  /* BEAT GRID — 16 cells showing the pattern visually */
+  .grid-wrap { padding: 14px 16px; background: var(--panel-deep); border-radius: 6px; }
+  .grid-lane { display: grid; grid-template-columns: 56px 1fr; gap: 10px; align-items: center; margin-bottom: 6px; }
+  .grid-lane:last-child { margin-bottom: 0; }
+  .lane-label { color: var(--muted); font-size: 11px; text-align: right; letter-spacing: 2px; text-transform: uppercase; }
+  .cells {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 3px;
+    height: 28px;
+  }
+  .cell {
+    background: #1a1620; border-radius: 2px;
+    position: relative;
+    transition: background 0.08s, box-shadow 0.08s;
+  }
+  .cell.on { background: var(--grid); }
+  .cell.hit-kick.on { background: var(--warm); box-shadow: 0 0 10px rgba(212,163,115,0.55); }
+  .cell.hit-snare.on { background: var(--accent); box-shadow: 0 0 10px rgba(193,122,156,0.55); }
+  .cell.hit-hat.on { background: var(--green); box-shadow: 0 0 10px rgba(143,185,156,0.45); }
+  .cell.beat1 { border-left: 1px solid var(--grid); }
+  .cell.flash {
+    outline: 1px solid var(--ink);
+    outline-offset: 1px;
+  }
+
+  /* HEAD / FOOT NAV + complete banner */
+  .lesson-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; font-size: 12px; color: var(--muted); }
+
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 10px 0; }
+  .math strong { color: var(--warm); font-weight: 400; }
+  .math em { color: var(--accent); font-style: normal; }
+  .math code { background: var(--panel-deep); padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+
+  hr.soft { border: none; border-top: 1px solid var(--grid); margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<nav class="lesson-nav">
+  <a href="index.html">← Module: Rhythm &amp; Pocket</a>
+  <span>Lesson 1 of 4 — Feel Families</span>
+  <a href="02-the-pocket.html">Next: The Pocket →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, var(--panel-hi), var(--panel)); border:1px solid var(--warm); border-radius:6px; padding:14px 18px; margin-bottom:20px; color:var(--warm); font-size:13px;">
+  ✓ Lesson 1 marked complete. <a href="index.html" style="color:var(--accent);">Back to module →</a>
+</div>
+
+<h1>~ Feel Families ~</h1>
+<p class="sub">Same kick. Same snare. Same Rhodes chord. The hi-hat moves — and the song becomes three different songs. Straight. Swing. Shuffle. Press play and flip between them. Your ear already knows these.</p>
+
+<!-- Transport -->
+<div class="panel">
+  <div class="transport">
+    <button id="startBtn" class="primary">▶ play</button>
+    <button id="stopBtn">■ stop</button>
+    <label>tempo
+      <input type="range" id="tempo" min="60" max="140" step="1" value="88">
+      <span id="tempoVal" style="width:44px; color:var(--ink);">88 BPM</span>
+    </label>
+    <label>vol
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8">
+      <span id="volVal" style="width:36px; color:var(--ink); text-align:right;">80%</span>
+    </label>
+    <span class="spacer"></span>
+    <span id="statusLabel" class="status">idle</span>
+  </div>
+</div>
+
+<!-- Feel selector -->
+<h2>Choose a Feel</h2>
+<div class="panel">
+  <div class="feel-row" id="feelRow">
+    <div class="feel-btn active" data-feel="straight" style="--feel-color: var(--warm);">
+      <div class="feel-name">STRAIGHT</div>
+      <div class="feel-sub">even 8ths · rock, pop, edm</div>
+    </div>
+    <div class="feel-btn" data-feel="swing" style="--feel-color: var(--accent);">
+      <div class="feel-name">SWING</div>
+      <div class="feel-sub">uneven 8ths · jazz, hip-hop, neo-soul</div>
+    </div>
+    <div class="feel-btn" data-feel="shuffle" style="--feel-color: var(--green);">
+      <div class="feel-name">SHUFFLE</div>
+      <div class="feel-sub">triplet 8ths · blues, motown, drunken</div>
+    </div>
+  </div>
+  <div class="feel-blurb" id="feelBlurb">
+    Even 8ths. The hat is a metronome: <em>tick tick tick tick</em>. Every subdivision gets equal weight. The tightest, squarest, most urgent feel. Most modern rock and pop lives here.
+  </div>
+</div>
+
+<!-- Beat grid visualization -->
+<h2>What You're Hearing</h2>
+<div class="panel" style="padding:0;">
+  <div class="grid-wrap">
+    <div class="grid-lane">
+      <div class="lane-label">Kick</div>
+      <div class="cells" id="kickLane"></div>
+    </div>
+    <div class="grid-lane">
+      <div class="lane-label">Snare</div>
+      <div class="cells" id="snareLane"></div>
+    </div>
+    <div class="grid-lane">
+      <div class="lane-label">Hat</div>
+      <div class="cells" id="hatLane"></div>
+    </div>
+  </div>
+</div>
+
+<!-- The why -->
+<h2>Why Feel Is The Song</h2>
+<div class="panel math">
+  <p><strong>1. The kick and snare are the skeleton. The hat is the personality.</strong> In all three feels you just played, the kick lands on 1 and 3 and the snare lands on 2 and 4. That's the backbone — same in every feel. What moves is the <em>subdivision</em> between the beats. That's where the song's mood lives.</p>
+
+  <p><strong>2. Straight splits the beat in half.</strong> Between each click of the quarter-note pulse, the hat fires once, exactly in the middle. Two even 8ths per beat. Everything lines up on a tight grid. This is why drum machines and dance music sound "quantized" — they're living in straight-8ths land.</p>
+
+  <p><strong>3. Swing pulls the "and" late.</strong> Take that middle hat click and delay it — push it closer to the next beat. Now the hat goes <em>tick . . . tick</em> instead of <em>tick . tick</em>. The first 8th is long, the second is short. That long-short-long-short pattern is the sound of jazz, of A Tribe Called Quest, of D'Angelo's <code>Voodoo</code>. Not "wrong timing" — a feel the performer chose.</p>
+
+  <p><strong>4. Shuffle divides the beat into three.</strong> Triplet 8ths. The hat lands on 1 and the last third of the beat — <code>DA - - da</code>, <code>DA - - da</code>. Blues grooves, shuffle-rock, half of Motown. When you snap along to "Pride and Joy" or "Rollin' and Tumblin'," you're feeling three-against-the-beat.</p>
+
+  <p style="color: var(--muted);">Press play. Leave it running. Click between the three feels and just listen. The kick and snare never change. Your body will. That's the lesson.</p>
+
+  <hr class="soft">
+  <p style="color: var(--muted); font-size: 12px; margin-bottom: 8px;">When you can hear the difference with your eyes closed — when "straight vs swing vs shuffle" stops being a vocabulary question and starts being a feeling:</p>
+  <button id="markComplete" class="complete-btn">Mark Lesson 1 Complete ✓</button>
+</div>
+
+<script>
+// ============================================================
+// PATTERN DATA — one bar of 16 sixteenth-note cells
+// (the grid is a visualization; actual scheduling is per-feel below)
+// ============================================================
+const KICK_HITS  = [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]; // 1 and 3
+const SNARE_HITS = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]; // 2 and 4
+// hat hits get rebuilt per feel — see pickHatHits()
+
+const FEELS = {
+  straight: {
+    label: 'STRAIGHT',
+    color: 'var(--warm)',
+    blurb: 'Even 8ths. The hat is a metronome: <em>tick tick tick tick</em>. Every subdivision gets equal weight. The tightest, squarest, most urgent feel. Most modern rock and pop lives here.',
+    // 8 hat hits, evenly spaced, at every other sixteenth cell
+    hatCells: [0, 2, 4, 6, 8, 10, 12, 14],
+    swing: 0,
+    hatDivision: '8n'
+  },
+  swing: {
+    label: 'SWING',
+    color: 'var(--accent)',
+    blurb: 'Uneven 8ths — the "and" of each beat sits late, closer to the next downbeat. <em>Long short long short.</em> The feel of jazz, hip-hop that breathes, neo-soul. A Tribe Called Quest, D\'Angelo — everything human and pocketed.',
+    // Same 8 cells, but with Tone.Transport.swing the second 8th gets pushed late
+    hatCells: [0, 2, 4, 6, 8, 10, 12, 14],
+    swing: 0.58,
+    hatDivision: '8n'
+  },
+  shuffle: {
+    label: 'SHUFFLE',
+    color: 'var(--green)',
+    blurb: 'Triplet 8ths. Divide each beat into three instead of two. The hat rides on 1 and on the last third of the beat — <em>DA - da, DA - da</em>. Blues, Motown, shuffle-rock. Your foot will tap three-against-the-beat without asking.',
+    // Triplet grid doesn't map cleanly to 16 cells — visualize as 1st-and-3rd-of-three
+    // In 4 beats × 3 triplets = 12 slots. For the visual grid, approximate on the 16-cell row.
+    hatCells: [0, 3, 4, 7, 8, 11, 12, 15], // "and a 1, and a 2..." — triplet approximation
+    swing: 0,
+    hatDivision: '8t' // triplet 8ths in Tone.js notation
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let currentFeel = 'straight';
+let isPlaying = false;
+let audioReady = false;
+let currentStep = -1; // 0..15, for the grid highlight
+
+let kick, snare, hat, rhodes, master;
+let drumLoop;
+
+// ============================================================
+// BUILD GRID CELLS
+// ============================================================
+function buildLane(containerId, hits, hitClass) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell ' + hitClass;
+    if (i % 4 === 0) c.classList.add('beat1');
+    if (hits[i]) c.classList.add('on');
+    c.dataset.step = i;
+    el.appendChild(c);
+  }
+}
+
+function redrawGrid() {
+  buildLane('kickLane',  KICK_HITS,  'hit-kick');
+  buildLane('snareLane', SNARE_HITS, 'hit-snare');
+  // hat lane reflects current feel
+  const hatRow = new Array(16).fill(0);
+  FEELS[currentFeel].hatCells.forEach(c => { hatRow[c] = 1; });
+  buildLane('hatLane', hatRow, 'hit-hat');
+}
+
+// ============================================================
+// FLASH CELL ON HIT — ties visual to audio
+// ============================================================
+function flashStep(step) {
+  // clear previous flash
+  document.querySelectorAll('.cell.flash').forEach(el => el.classList.remove('flash'));
+  // flash the current step column
+  if (step < 0 || step > 15) return;
+  ['kickLane', 'snareLane', 'hatLane'].forEach(id => {
+    const cell = document.querySelector(`#${id} .cell[data-step="${step}"]`);
+    if (cell) cell.classList.add('flash');
+  });
+}
+
+// ============================================================
+// TONE.JS — build signal chain
+// ============================================================
+function buildAudio() {
+  master = new Tone.Gain(0.8).toDestination();
+  const reverb = new Tone.Reverb({ decay: 1.8, wet: 0.12 }).connect(master);
+  const busComp = new Tone.Compressor({ threshold: -16, ratio: 3 }).connect(reverb);
+
+  kick = new Tone.MembraneSynth({
+    pitchDecay: 0.04, octaves: 6,
+    envelope: { attack: 0.001, decay: 0.32, sustain: 0, release: 0.4 },
+    volume: -4
+  }).connect(busComp);
+
+  snare = new Tone.NoiseSynth({
+    noise: { type: 'white' },
+    envelope: { attack: 0.001, decay: 0.17, sustain: 0, release: 0.2 },
+    volume: -12
+  }).connect(busComp);
+
+  hat = new Tone.MetalSynth({
+    frequency: 400,
+    envelope: { attack: 0.001, decay: 0.06, release: 0.01 },
+    harmonicity: 5.1, modulationIndex: 32,
+    resonance: 4000, octaves: 1.5,
+    volume: -28
+  }).connect(busComp);
+
+  rhodes = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.02, decay: 0.8, sustain: 0.3, release: 1.4 },
+    volume: -16
+  }).connect(reverb);
+
+  Tone.Transport.bpm.value = parseInt(document.getElementById('tempo').value, 10);
+}
+
+// ============================================================
+// SCHEDULER — one event per 16th, applies feel
+// ============================================================
+function scheduleLoop() {
+  if (drumLoop) { drumLoop.dispose(); drumLoop = null; }
+
+  // We use a 16th-note loop for kick/snare (rhythmically those are the spine)
+  // and schedule hats separately per-feel so their subdivision actually matches.
+  drumLoop = new Tone.Loop((time) => {
+    // Figure out which 16th step we're on within the bar
+    const pos = Tone.Transport.position.toString(); // "bars:beats:sixteenths"
+    const parts = pos.split(':');
+    const bar  = parseInt(parts[0], 10);
+    const beat = parseInt(parts[1], 10);
+    const six  = Math.floor(parseFloat(parts[2]));
+    const step = (beat * 4 + six) % 16;
+
+    // Kick / snare straight on the 16th grid
+    if (KICK_HITS[step])  kick.triggerAttackRelease('C1', '8n', time, 0.95);
+    if (SNARE_HITS[step]) snare.triggerAttackRelease('16n', time, 0.8);
+
+    // Update the visual step for the flash
+    Tone.Draw.schedule(() => { currentStep = step; flashStep(step); }, time);
+
+    // Rhodes chord — Cmaj7 hit on beat 1 of every bar
+    if (step === 0) {
+      rhodes.triggerAttackRelease(['C4', 'E4', 'G4', 'B4'], '1n', time, 0.5);
+    }
+  }, '16n').start(0);
+
+  scheduleHats();
+}
+
+let hatLoop;
+function scheduleHats() {
+  if (hatLoop) { hatLoop.dispose(); hatLoop = null; }
+  const feel = FEELS[currentFeel];
+  Tone.Transport.swing = feel.swing;
+  Tone.Transport.swingSubdivision = '8n';
+
+  hatLoop = new Tone.Loop((time) => {
+    hat.triggerAttackRelease('16n', time, 0.35);
+  }, feel.hatDivision).start(0);
+}
+
+// ============================================================
+// FEEL SWITCHING
+// ============================================================
+function setFeel(feelKey) {
+  if (!FEELS[feelKey]) return;
+  currentFeel = feelKey;
+  // buttons
+  document.querySelectorAll('.feel-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.feel === feelKey);
+  });
+  // blurb
+  document.getElementById('feelBlurb').innerHTML = FEELS[feelKey].blurb;
+  // grid
+  redrawGrid();
+  // if we're playing, reschedule the hat loop live
+  if (isPlaying) {
+    Tone.Transport.swing = FEELS[feelKey].swing;
+    if (hatLoop) { hatLoop.dispose(); hatLoop = null; }
+    hatLoop = new Tone.Loop((time) => {
+      hat.triggerAttackRelease('16n', time, 0.35);
+    }, FEELS[feelKey].hatDivision).start('+0.01');
+  }
+}
+
+document.querySelectorAll('.feel-btn').forEach(b => {
+  b.addEventListener('click', () => setFeel(b.dataset.feel));
+});
+
+// ============================================================
+// TRANSPORT CONTROLS
+// ============================================================
+const startBtn   = document.getElementById('startBtn');
+const stopBtn    = document.getElementById('stopBtn');
+const tempoSlide = document.getElementById('tempo');
+const tempoVal   = document.getElementById('tempoVal');
+const volSlide   = document.getElementById('vol');
+const volVal     = document.getElementById('volVal');
+const statusLbl  = document.getElementById('statusLabel');
+
+startBtn.addEventListener('click', async () => {
+  if (!audioReady) {
+    await Tone.start();
+    buildAudio();
+    scheduleLoop();
+    audioReady = true;
+  }
+  Tone.Transport.start();
+  isPlaying = true;
+  statusLbl.textContent = 'playing · ' + FEELS[currentFeel].label.toLowerCase();
+  statusLbl.classList.add('on');
+});
+
+stopBtn.addEventListener('click', () => {
+  if (!audioReady) return;
+  Tone.Transport.stop();
+  Tone.Transport.position = 0;
+  isPlaying = false;
+  currentStep = -1;
+  flashStep(-1);
+  statusLbl.textContent = 'idle';
+  statusLbl.classList.remove('on');
+});
+
+tempoSlide.addEventListener('input', e => {
+  const v = parseInt(e.target.value, 10);
+  tempoVal.textContent = v + ' BPM';
+  if (audioReady) Tone.Transport.bpm.rampTo(v, 0.1);
+});
+
+volSlide.addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  volVal.textContent = Math.round(v * 100) + '%';
+  if (master) master.gain.rampTo(v, 0.05);
+});
+
+// ============================================================
+// MODULE PROGRESS
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-rhythm';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const progress = loadProgress();
+const completeBtn = document.getElementById('markComplete');
+const banner = document.getElementById('completeBanner');
+
+if (progress.lesson1 === 'complete') {
+  completeBtn.textContent = 'Lesson 1 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+}
+
+completeBtn.addEventListener('click', () => {
+  if (progress.lesson1 === 'complete') return;
+  progress.lesson1 = 'complete';
+  progress.lesson1CompletedAt = new Date().toISOString();
+  saveProgress(progress);
+  completeBtn.textContent = 'Lesson 1 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+redrawGrid();
+</script>
+</body>
+</html>
