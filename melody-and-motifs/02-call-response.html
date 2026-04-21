@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Call &amp; Response</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+    --rose: #d09b8e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 18px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  /* ANTECEDENT PICKER */
+  .ant-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+  .ant-btn {
+    padding: 14px; text-align: left; background: var(--panel-2);
+    border: 1px solid var(--grid); color: var(--ink); border-radius: 4px; cursor: pointer;
+    font-family: inherit; font-size: 12px;
+  }
+  .ant-btn:hover { border-color: var(--warm); }
+  .ant-btn.active { border-color: var(--warm); background: var(--panel-hi); box-shadow: 0 0 16px rgba(212,163,115,0.2); }
+  .ant-name { display: block; font-size: 14px; color: var(--warm); margin-bottom: 4px; }
+  .ant-mood { display: block; font-size: 11px; color: var(--muted); }
+
+  /* CONSEQUENT CARDS */
+  .con-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+  .con-card {
+    background: var(--panel-2); border: 1px solid var(--grid); border-radius: 6px;
+    padding: 18px; cursor: pointer; transition: all 0.2s;
+  }
+  .con-card:hover { border-color: var(--warm); }
+  .con-card.tonic:hover { border-color: var(--green); }
+  .con-card.dominant:hover { border-color: var(--warm); }
+  .con-card.leading:hover { border-color: var(--rose); }
+  .con-card.active.tonic { border-color: var(--green); background: var(--panel-hi); box-shadow: 0 0 16px rgba(143,185,156,0.2); }
+  .con-card.active.dominant { border-color: var(--warm); background: var(--panel-hi); box-shadow: 0 0 16px rgba(212,163,115,0.2); }
+  .con-card.active.leading { border-color: var(--rose); background: var(--panel-hi); box-shadow: 0 0 16px rgba(208,155,142,0.2); }
+  .con-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 6px; }
+  .con-card.tonic .con-label { color: var(--green); }
+  .con-card.dominant .con-label { color: var(--warm); }
+  .con-card.leading .con-label { color: var(--rose); }
+  .con-title { font-size: 16px; margin-bottom: 6px; }
+  .con-desc { font-size: 11px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+  .con-preview { width: 100%; padding: 8px; font-size: 12px; background: var(--panel-deep); border: 1px solid var(--grid); color: var(--ink); border-radius: 4px; cursor: pointer; font-family: inherit; }
+  .con-preview:hover { color: var(--warm); border-color: var(--warm); }
+
+  /* PHRASE VIEW: 8 bars as a horizontal strip */
+  .phrase {
+    background: var(--panel-deep); border-radius: 6px; padding: 14px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    min-height: 80px;
+  }
+  .phrase .half {
+    background: #1a1620; border-radius: 4px; padding: 12px; text-align: center;
+    border: 1px solid var(--grid);
+  }
+  .phrase .half.ant { border-color: var(--accent); }
+  .phrase .half.con { border-color: var(--green); }
+  .phrase .half .tag { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .phrase .half .tag.ant { color: var(--accent); }
+  .phrase .half .tag.con { color: var(--green); }
+  .phrase .half .seq { font-size: 12px; color: var(--ink); margin-top: 6px; letter-spacing: 2px; }
+  .phrase .half.empty { opacity: 0.5; }
+  .phrase .half.playing { outline: 1px solid var(--warm); }
+
+  .play-row { display: flex; gap: 10px; margin-top: 14px; }
+
+  /* LESSON NAV + MATH */
+  .lesson-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; font-size: 12px; color: var(--muted); }
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 10px 0; }
+  .math strong { color: var(--warm); font-weight: 400; }
+  .math em { color: var(--accent); font-style: normal; }
+  .math code { background: var(--panel-deep); padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+
+  .cadence-key { display: flex; gap: 18px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 10px; }
+  .cadence-key .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
+  .cadence-key .dot.g { background: var(--green); }
+  .cadence-key .dot.w { background: var(--warm); }
+  .cadence-key .dot.r { background: var(--rose); }
+
+  .hint { font-size: 11px; color: var(--muted); margin-top: 8px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<nav class="lesson-nav">
+  <a href="index.html">← Module: Melody &amp; Motifs</a>
+  <span>Lesson 2 of 4 — Call &amp; Response</span>
+  <a href="03-melody-over-chords.html">Next: Melody over Chords →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, var(--panel-hi), var(--panel)); border:1px solid var(--warm); border-radius:6px; padding:14px 18px; margin-bottom:20px; color:var(--warm); font-size:13px;">
+  ✓ Lesson 2 marked complete. <a href="index.html" style="color:var(--accent);">Back to module →</a>
+</div>
+
+<h1>~ Call &amp; Response ~</h1>
+<p class="sub">Good melodies have a conversation with themselves. The <em>antecedent</em> asks a question; the <em>consequent</em> answers. Where you land the last note of the answer is what decides whether the phrase feels <em>closed</em>, <em>open</em>, or <em>hanging</em>. Pick a question. Hear three answers.</p>
+
+<!-- 1. ANTECEDENT -->
+<div class="panel">
+  <h2>1 · Pick a question (antecedent)</h2>
+  <div class="ant-row" id="antRow">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<!-- 2. CONSEQUENT CHOICE -->
+<div class="panel">
+  <h2>2 · Choose an answer (consequent)</h2>
+  <div class="con-grid">
+    <div class="con-card tonic" data-con="tonic">
+      <div class="con-label">● Resolved</div>
+      <div class="con-title">Lands on <strong>tonic</strong> (1)</div>
+      <div class="con-desc">Full stop. The ear settles; the phrase is complete. This is how nursery rhymes and pop hooks end.</div>
+      <button class="con-preview" data-preview="tonic">▶ preview</button>
+    </div>
+    <div class="con-card dominant" data-con="dominant">
+      <div class="con-label">● Open</div>
+      <div class="con-title">Lands on <strong>dominant</strong> (5)</div>
+      <div class="con-desc">A comma, not a period. The phrase feels paused mid-thought. Perfect for setting up a second line.</div>
+      <button class="con-preview" data-preview="dominant">▶ preview</button>
+    </div>
+    <div class="con-card leading" data-con="leading">
+      <div class="con-label">● Cliffhanger</div>
+      <div class="con-title">Lands on <strong>leading tone</strong> (7)</div>
+      <div class="con-desc">One half-step below home. The tension is almost physical — you can feel the note wanting to resolve.</div>
+      <button class="con-preview" data-preview="leading">▶ preview</button>
+    </div>
+  </div>
+</div>
+
+<!-- 3. FULL PHRASE -->
+<div class="panel">
+  <h2>3 · Hear the full phrase</h2>
+  <div class="phrase">
+    <div class="half ant" id="halfAnt">
+      <div class="tag ant">Antecedent</div>
+      <div class="seq" id="antSeq">pick a question above</div>
+    </div>
+    <div class="half con empty" id="halfCon">
+      <div class="tag con">Consequent</div>
+      <div class="seq" id="conSeq">pick an answer above</div>
+    </div>
+  </div>
+  <div class="play-row">
+    <button class="primary" id="playFullBtn">▶ play full phrase</button>
+    <button id="playAntBtn">▶ antecedent only</button>
+    <button id="playConBtn">▶ consequent only</button>
+  </div>
+  <div class="cadence-key">
+    <span><span class="dot g"></span> Authentic / perfect cadence — ends on 1</span>
+    <span><span class="dot w"></span> Half cadence — ends on 5</span>
+    <span><span class="dot r"></span> Deceptive / unresolved — ends on 7</span>
+  </div>
+  <div class="hint">Try playing the same antecedent with each of the three consequents. The question doesn't change — the feel of the whole phrase does.</div>
+</div>
+
+<!-- 4. THE IDEA -->
+<div class="panel">
+  <h2>The idea</h2>
+  <div class="math">
+    <p>A phrase is a complete musical thought. Two-bar phrases pair up into four-bar sentences the way <em>question</em> pairs with <em>answer</em>. This is the <strong>period</strong>, the oldest form in Western tonal music — Mozart, Lennon, and Taylor Swift all use it.</p>
+    <p>The three endings above are the three classical <strong>cadences</strong>. The <em>authentic cadence</em> (ending on <code>1</code>) is full punctuation. The <em>half cadence</em> (ending on <code>5</code>) is a comma — it says "I'm not done yet." The ending on <code>7</code> (the leading tone) doesn't have a classical name on its own because it's <em>refusing</em> to cadence — a cliffhanger demanding continuation.</p>
+    <p>Listen to <em>Twinkle Twinkle Little Star</em>: "twinkle twinkle little star" ends on <code>5</code> (open). "How I wonder what you are" ends on <code>1</code> (closed). That's the whole game. Great songwriters just do it with better tunes.</p>
+  </div>
+  <button id="completeBtn" class="complete-btn">Mark lesson complete →</button>
+</div>
+
+<script>
+// ============ PITCH HELPERS ============
+// Scale degrees 1..7 of C major map to MIDI-ish note names in two octaves.
+// Degrees we use: 1,2,3,4,5,6,7 at octave 4 (below) and 5 (above tonic).
+// Using flat-naming where needed.
+function deg(d, oct) {
+  // d: scale degree 1..7 (or 8 for octave), oct: 4 or 5
+  const map = { 1:'C', 2:'D', 3:'E', 4:'F', 5:'G', 6:'A', 7:'B', 8:'C' };
+  return map[d] + oct;
+}
+
+// ============ ANTECEDENTS ============
+// Each is a list of {d, o, dur} where d is scale degree, o is octave,
+// dur is duration in sixteenths. Last note tends to sit on 2 or 3 — a "half-open" place
+// that any of the three consequents can continue from.
+const ANTECEDENTS = {
+  lyric: {
+    name: 'Lyric',
+    mood: 'singable, stepwise',
+    notes: [
+      {d:5, o:4, dur:2}, {d:6, o:4, dur:2}, {d:5, o:4, dur:2}, {d:3, o:4, dur:2},
+      {d:4, o:4, dur:2}, {d:3, o:4, dur:2}, {d:2, o:4, dur:4}
+    ]
+  },
+  arpeggiated: {
+    name: 'Arpeggiated',
+    mood: 'bright, climbing',
+    notes: [
+      {d:1, o:4, dur:2}, {d:3, o:4, dur:2}, {d:5, o:4, dur:2}, {d:8, o:5, dur:2},
+      {d:5, o:4, dur:2}, {d:3, o:4, dur:2}, {d:2, o:4, dur:4}
+    ]
+  },
+  plaintive: {
+    name: 'Plaintive',
+    mood: 'descending, reflective',
+    notes: [
+      {d:8, o:5, dur:2}, {d:7, o:4, dur:2}, {d:6, o:4, dur:2}, {d:5, o:4, dur:2},
+      {d:4, o:4, dur:2}, {d:3, o:4, dur:2}, {d:2, o:4, dur:4}
+    ]
+  },
+  rhythmic: {
+    name: 'Rhythmic',
+    mood: 'punchy, repeated',
+    notes: [
+      {d:3, o:4, dur:1}, {d:3, o:4, dur:1}, {d:5, o:4, dur:2},
+      {d:3, o:4, dur:1}, {d:3, o:4, dur:1}, {d:5, o:4, dur:2},
+      {d:4, o:4, dur:2}, {d:2, o:4, dur:4}
+    ]
+  }
+};
+
+// ============ CONSEQUENTS ============
+// Each consequent is built to match any antecedent — arriving at target degree.
+const CONSEQUENTS = {
+  tonic: {
+    label: 'Resolved',
+    notes: [
+      {d:2, o:4, dur:2}, {d:3, o:4, dur:2}, {d:4, o:4, dur:2}, {d:5, o:4, dur:2},
+      {d:3, o:4, dur:2}, {d:2, o:4, dur:2}, {d:1, o:4, dur:4}
+    ]
+  },
+  dominant: {
+    label: 'Open',
+    notes: [
+      {d:3, o:4, dur:2}, {d:4, o:4, dur:2}, {d:3, o:4, dur:2}, {d:2, o:4, dur:2},
+      {d:3, o:4, dur:2}, {d:4, o:4, dur:2}, {d:5, o:4, dur:4}
+    ]
+  },
+  leading: {
+    label: 'Cliffhanger',
+    notes: [
+      {d:4, o:4, dur:2}, {d:5, o:4, dur:2}, {d:6, o:4, dur:2}, {d:5, o:4, dur:2},
+      {d:4, o:4, dur:2}, {d:6, o:4, dur:2}, {d:7, o:4, dur:4}
+    ]
+  }
+};
+
+// ============ STATE ============
+let currentAnt = 'lyric';
+let currentCon = null;
+let synth = null;
+let playingId = null;
+
+// ============ RENDER ============
+function renderAntRow() {
+  const row = document.getElementById('antRow');
+  row.innerHTML = '';
+  Object.entries(ANTECEDENTS).forEach(([key, a]) => {
+    const b = document.createElement('button');
+    b.className = 'ant-btn' + (key === currentAnt ? ' active' : '');
+    b.innerHTML = `<span class="ant-name">${a.name}</span><span class="ant-mood">${a.mood}</span>`;
+    b.addEventListener('click', () => { currentAnt = key; renderAntRow(); renderPhrase(); });
+    row.appendChild(b);
+  });
+}
+
+function renderPhrase() {
+  const ant = ANTECEDENTS[currentAnt];
+  document.getElementById('antSeq').textContent = ant.notes.map(n => n.d).join(' – ');
+  const halfCon = document.getElementById('halfCon');
+  if (currentCon) {
+    const con = CONSEQUENTS[currentCon];
+    document.getElementById('conSeq').textContent = con.notes.map(n => n.d).join(' – ');
+    halfCon.classList.remove('empty');
+  } else {
+    document.getElementById('conSeq').textContent = 'pick an answer above';
+    halfCon.classList.add('empty');
+  }
+  document.querySelectorAll('.con-card').forEach(c => c.classList.remove('active'));
+  if (currentCon) document.querySelector(`.con-card[data-con="${currentCon}"]`).classList.add('active');
+}
+
+// ============ PLAYBACK ============
+function ensureSynth() {
+  if (!synth) {
+    synth = new Tone.Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.01, decay: 0.12, sustain: 0.6, release: 0.35 }
+    }).toDestination();
+    synth.volume.value = -9;
+  }
+}
+
+function stopPlayback() {
+  Tone.Transport.stop();
+  Tone.Transport.cancel();
+  document.querySelectorAll('.half').forEach(h => h.classList.remove('playing'));
+}
+
+async function playSequence(kind) {
+  await Tone.start();
+  ensureSynth();
+  stopPlayback();
+  Tone.Transport.bpm.value = 96;
+
+  const ant = ANTECEDENTS[currentAnt];
+  const con = currentCon ? CONSEQUENTS[currentCon] : null;
+
+  let t = 0; // in 16th-notes
+  const sched = [];
+  const sixteenth = Tone.Time('16n').toSeconds();
+
+  function pushNotes(notes, half) {
+    for (const n of notes) {
+      sched.push({ time: t * sixteenth, note: deg(n.d, n.o), dur: n.dur, half });
+      t += n.dur;
+    }
+  }
+
+  if (kind === 'ant' || kind === 'full') pushNotes(ant.notes, 'ant');
+  if (kind === 'con' && con) pushNotes(con.notes, 'con');
+  if (kind === 'full' && con) pushNotes(con.notes, 'con');
+
+  sched.forEach(evt => {
+    Tone.Transport.schedule(time => {
+      synth.triggerAttackRelease(evt.note, evt.dur * sixteenth * 0.95, time);
+      const half = evt.half === 'ant' ? document.getElementById('halfAnt') : document.getElementById('halfCon');
+      Tone.Draw.schedule(() => {
+        document.querySelectorAll('.half').forEach(h => h.classList.remove('playing'));
+        half.classList.add('playing');
+      }, time);
+    }, evt.time);
+  });
+
+  // end marker
+  const endTime = t * sixteenth + 0.3;
+  Tone.Transport.schedule(time => {
+    Tone.Draw.schedule(() => {
+      document.querySelectorAll('.half').forEach(h => h.classList.remove('playing'));
+    }, time);
+    Tone.Transport.stop();
+  }, endTime);
+
+  Tone.Transport.start();
+}
+
+// preview consequents (play ant + con quickly)
+async function previewConsequent(kind) {
+  currentCon = kind;
+  renderPhrase();
+  await playSequence('full');
+}
+
+// ============ WIRE UP ============
+document.querySelectorAll('.con-card').forEach(card => {
+  card.addEventListener('click', () => {
+    currentCon = card.dataset.con;
+    renderPhrase();
+  });
+});
+document.querySelectorAll('.con-preview').forEach(b => {
+  b.addEventListener('click', e => {
+    e.stopPropagation();
+    previewConsequent(b.dataset.preview);
+  });
+});
+
+document.getElementById('playFullBtn').addEventListener('click', () => playSequence('full'));
+document.getElementById('playAntBtn').addEventListener('click', () => playSequence('ant'));
+document.getElementById('playConBtn').addEventListener('click', () => {
+  if (!currentCon) { alert('pick a consequent first'); return; }
+  playSequence('con');
+});
+
+// ============ PROGRESS ============
+const PROGRESS_KEY = 'rizzo-studio-melody';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const completeBtn = document.getElementById('completeBtn');
+function refreshCompleteBtn() {
+  const p = loadProgress();
+  if (p.lesson2 === 'complete') {
+    completeBtn.textContent = '✓ complete';
+    completeBtn.classList.add('done');
+    document.getElementById('completeBanner').style.display = 'block';
+  }
+}
+completeBtn.addEventListener('click', () => {
+  const p = loadProgress();
+  p.lesson2 = 'complete';
+  saveProgress(p);
+  refreshCompleteBtn();
+});
+
+// ============ INIT ============
+renderAntRow();
+renderPhrase();
+refreshCompleteBtn();
+</script>
+
+</body>
+</html>

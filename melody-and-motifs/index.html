@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Module 4: Melody &amp; Motifs</title>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+    --lock: #4a4252;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .kicker { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 3px; }
+  h1 { font-weight: 400; font-size: 32px; margin: 4px 0 8px; color: var(--warm); }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; max-width: 680px; }
+  h2 { font-weight: 400; font-size: 12px; margin: 28px 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+
+  .progress-wrap { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 16px 20px; margin-bottom: 24px; }
+  .progress-stats { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .progress-stats strong { color: var(--warm); font-size: 14px; }
+  .progress-bar { background: #14111a; height: 6px; border-radius: 3px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--warm), var(--accent)); height: 100%; transition: width 0.5s ease; }
+
+  .grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .path { display: flex; flex-direction: column; gap: 0; position: relative; }
+  .lesson {
+    display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center;
+    padding: 18px 20px;
+    background: var(--panel); border: 1px solid var(--grid); border-radius: 6px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .lesson:hover { border-color: var(--warm); }
+  .lesson.complete { border-color: var(--green); }
+  .lesson.current { border-color: var(--warm); box-shadow: 0 0 24px rgba(212,163,115,0.15); }
+
+  .lesson-num {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--panel-2); border: 2px solid var(--grid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--muted);
+  }
+  .lesson.complete .lesson-num { background: var(--green); color: var(--bg); border-color: var(--green); }
+  .lesson.current .lesson-num { border-color: var(--warm); color: var(--warm); }
+
+  .lesson-body h3 { margin: 0 0 4px; font-weight: 400; font-size: 16px; color: var(--ink); }
+  .lesson-body p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .lesson-body .tags { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 2px 8px; background: #14111a; border-radius: 10px; color: var(--muted); }
+
+  .lesson-action {
+    padding: 10px 18px; border: 1px solid var(--grid); border-radius: 4px;
+    background: transparent; color: var(--muted); font-family: inherit; font-size: 12px;
+    text-decoration: none; white-space: nowrap;
+  }
+  .lesson .lesson-action { border-color: var(--warm); color: var(--warm); }
+  .lesson .lesson-action:hover { background: var(--warm); color: var(--bg); }
+  .lesson.complete .lesson-action { border-color: var(--green); color: var(--green); }
+  .lesson.complete .lesson-action:hover { background: var(--green); color: var(--bg); }
+
+  .capstone { margin-top: 20px; padding: 24px; background: linear-gradient(135deg, #1f1a28, #241e2d); border: 1px dashed var(--warm); border-radius: 6px; text-align: center; }
+  .capstone.locked { border-color: var(--grid); border-style: dashed; opacity: 0.6; }
+  .capstone h3 { color: var(--warm); margin: 0 0 6px; font-weight: 400; font-size: 18px; }
+  .capstone p { color: var(--muted); margin: 0 0 14px; font-size: 12px; }
+  .capstone-btn {
+    display: inline-block; padding: 12px 28px; border-radius: 4px;
+    background: var(--warm); color: var(--bg); text-decoration: none;
+    font-size: 13px; letter-spacing: 1px;
+  }
+  .capstone-btn:hover { background: var(--accent); color: var(--bg); }
+  .capstone.locked .capstone-btn { background: var(--lock); color: var(--muted); cursor: not-allowed; pointer-events: none; }
+
+  .sidebar { display: flex; flex-direction: column; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 18px; }
+  .card h4 { margin: 0 0 12px; font-weight: 400; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .skill-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+  .skill-list li { padding: 6px 0; border-bottom: 1px solid var(--grid); color: var(--muted); }
+  .skill-list li:last-child { border-bottom: none; }
+  .skill-list li.unlocked { color: var(--green); }
+  .skill-list li.unlocked::before { content: '✓ '; color: var(--green); }
+  .skill-list li:not(.unlocked)::before { content: '○ '; color: var(--lock); }
+
+  .glossary details { border-bottom: 1px solid var(--grid); padding: 8px 0; }
+  .glossary details:last-child { border-bottom: none; }
+  .glossary summary { cursor: pointer; color: var(--warm); font-size: 12px; list-style: none; }
+  .glossary summary::-webkit-details-marker { display: none; }
+  .glossary summary::before { content: '▸ '; transition: transform 0.2s; display: inline-block; }
+  .glossary details[open] summary::before { content: '▾ '; }
+  .glossary-def { margin-top: 6px; padding: 6px 0 4px 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .glossary-def code { color: var(--warm); background: #14111a; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+  .prereq { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+  .prereq a { color: var(--accent); }
+
+  .reset-link { font-size: 10px; color: var(--lock); text-align: center; display: block; margin-top: 20px; cursor: pointer; }
+  .reset-link:hover { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="kicker">Studio · Module 4</div>
+    <h1>Melody &amp; Motifs</h1>
+  </div>
+</div>
+<p class="sub">Chords give you ground. Rhythm gives you time. Melody is the line you draw across both. Learn how nearly every famous tune is one small idea — three or four notes — being moved, flipped, and restated until the whole song is built from it.</p>
+<p class="prereq">Prereq (optional): <a href="../chord-progressions/01-lofi-lab.html">Module 1 — Chord Progressions</a> for the harmonic field Lesson 3 draws on.</p>
+
+<div class="progress-wrap">
+  <div class="progress-stats">
+    <span><strong id="completedCount">0</strong> of 4 lessons complete</span>
+    <span id="quizStats">Capstone: not attempted</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+
+<div class="grid">
+  <div>
+    <h2>The Path</h2>
+
+    <a href="01-motif-lab.html" class="lesson" id="lesson1" data-lesson="1">
+      <div class="lesson-num">1</div>
+      <div class="lesson-body">
+        <h3>Motif Lab</h3>
+        <p>Plant a 4-note seed. Transpose it, invert it, retrograde it, stretch it, fragment it. Watch a small idea become many.</p>
+        <div class="tags">
+          <span class="tag">motif</span>
+          <span class="tag">transformation</span>
+          <span class="tag">piano roll</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="02-call-response.html" class="lesson" id="lesson2" data-lesson="2">
+      <div class="lesson-num">2</div>
+      <div class="lesson-body">
+        <h3>Call &amp; Response</h3>
+        <p>Question melodies and answer melodies. Land on 1 and the phrase is closed; land on 5 and it's open; land on 7 and it's cliffhanging. Three cadences, same question.</p>
+        <div class="tags">
+          <span class="tag">antecedent</span>
+          <span class="tag">consequent</span>
+          <span class="tag">cadence</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="03-melody-over-chords.html" class="lesson" id="lesson3" data-lesson="3">
+      <div class="lesson-num">3</div>
+      <div class="lesson-body">
+        <h3>Melody over Chords</h3>
+        <p>Click notes to build a melody over a 4-chord loop. Every note is color-coded — chord tone, diatonic, or chromatic. Learn the rule, then learn how breaking it well is the whole point.</p>
+        <div class="tags">
+          <span class="tag">chord tones</span>
+          <span class="tag">passing tones</span>
+          <span class="tag">chromatic approach</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="04-quiz.html" class="lesson" id="lesson4" data-lesson="4">
+      <div class="lesson-num">4</div>
+      <div class="lesson-body">
+        <h3>Snap Quiz — Name That Transformation</h3>
+        <p>Hear a motif, then a transformed version. Pick the move: transpose, invert, retrograde, sequence. Ten rounds. Seven to pass.</p>
+        <div class="tags">
+          <span class="tag">ear training</span>
+          <span class="tag">transformation ID</span>
+          <span class="tag">score tracking</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <div class="capstone" id="capstone">
+      <h3 id="capstoneTitle">✦ Module Capstone</h3>
+      <p id="capstoneText">Complete the first three lessons to unlock the Snap Quiz. Pass it, and this module earns its ✓.</p>
+      <a href="04-quiz.html" class="capstone-btn" id="capstoneBtn">Take the Quiz</a>
+    </div>
+  </div>
+
+  <div class="sidebar">
+
+    <div class="card">
+      <h4>What You Can Do</h4>
+      <ul class="skill-list" id="skillList">
+        <li data-unlock="1">Recognize the five classical motif transformations</li>
+        <li data-unlock="1">Build a melody by transforming a tiny seed</li>
+        <li data-unlock="2">Hear phrases as questions and answers</li>
+        <li data-unlock="2">Name authentic, half, and unresolved cadences by ear</li>
+        <li data-unlock="3">Distinguish chord tones, diatonic tones, and chromatic tones</li>
+        <li data-unlock="3">Write a singable melody over a chord progression</li>
+        <li data-unlock="4">Identify a transformation by ear under time pressure</li>
+      </ul>
+    </div>
+
+    <div class="card glossary">
+      <h4>Glossary</h4>
+      <details>
+        <summary>Motif</summary>
+        <div class="glossary-def">A short musical idea — usually 2 to 6 notes — that's distinctive enough to recognize when it comes back. The DNA of a melody. Beethoven's 5th is one four-note motif for twenty minutes.</div>
+      </details>
+      <details>
+        <summary>Transpose</summary>
+        <div class="glossary-def">Move every note of a motif up or down by the same interval. Shape preserved; pitch center moved. The most common transformation in tonal music.</div>
+      </details>
+      <details>
+        <summary>Invert</summary>
+        <div class="glossary-def">Flip every interval upside-down around a fixed anchor note. What went up now goes down. Bach's fugues live on this move.</div>
+      </details>
+      <details>
+        <summary>Retrograde</summary>
+        <div class="glossary-def">Play the motif backwards — last note first, first note last. Rare in common-practice tonal music, central in 12-tone and film scoring.</div>
+      </details>
+      <details>
+        <summary>Sequence</summary>
+        <div class="glossary-def">State a motif, then immediately restate it at a new pitch level. The engine of Baroque melody and still one of the most satisfying moves in pop writing.</div>
+      </details>
+      <details>
+        <summary>Antecedent / Consequent</summary>
+        <div class="glossary-def">The two halves of a musical sentence. The <em>antecedent</em> sets up a question; the <em>consequent</em> answers it. Together they make a <code>period</code>.</div>
+      </details>
+      <details>
+        <summary>Cadence</summary>
+        <div class="glossary-def">How a phrase ends. Landing on the tonic = <em>authentic cadence</em> (closed). Landing on the dominant = <em>half cadence</em> (open, like a comma). Landing elsewhere = unresolved.</div>
+      </details>
+      <details>
+        <summary>Chord tone</summary>
+        <div class="glossary-def">A note that belongs to the chord currently playing. Root, 3rd, 5th, 7th of <code>Cmaj7</code> are <code>C E G B</code>. Chord tones on strong beats are the skeleton of a melody.</div>
+      </details>
+      <details>
+        <summary>Passing tone</summary>
+        <div class="glossary-def">A note that bridges two chord tones by stepping through an in-between pitch. Almost always on a weak beat. The connective tissue of melodic writing.</div>
+      </details>
+      <details>
+        <summary>Chromatic approach</summary>
+        <div class="glossary-def">A note outside the key that resolves by half-step to a chord tone. Huge part of what makes jazz and sophisticated pop sound the way they do.</div>
+      </details>
+    </div>
+
+    <span class="reset-link" id="resetLink">reset module progress</span>
+  </div>
+</div>
+
+<script>
+const PROGRESS_KEY = 'rizzo-studio-melody';
+const LESSONS = [1, 2, 3, 4];
+
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+function render() {
+  const p = loadProgress();
+  let completed = 0;
+  let firstIncomplete = null;
+
+  LESSONS.forEach(n => {
+    const el = document.getElementById('lesson' + n);
+    el.classList.remove('complete', 'current');
+
+    const isComplete = p['lesson' + n] === 'complete';
+    if (isComplete) {
+      completed++;
+      el.classList.add('complete');
+      el.querySelector('.lesson-action').textContent = 'review';
+    } else if (!firstIncomplete) {
+      firstIncomplete = n;
+      el.classList.add('current');
+      el.querySelector('.lesson-action').textContent = '▶ open';
+    } else {
+      el.querySelector('.lesson-action').textContent = '▶ open';
+    }
+  });
+
+  document.getElementById('completedCount').textContent = completed;
+  document.getElementById('progressFill').style.width = (completed / 4 * 100) + '%';
+
+  const gateReady = p.lesson1 === 'complete' && p.lesson2 === 'complete' && p.lesson3 === 'complete';
+  const capstone = document.getElementById('capstone');
+  const capText = document.getElementById('capstoneText');
+  const capTitle = document.getElementById('capstoneTitle');
+  if (p.lesson4 === 'complete') {
+    capstone.classList.remove('locked');
+    capTitle.textContent = '✓ Module Complete';
+    capText.innerHTML = `You passed the Snap Quiz — best: <strong style="color:var(--green)">${p.quizBest || '?'}/10</strong>. Retake anytime.`;
+    document.getElementById('capstoneBtn').textContent = 'Retake Quiz';
+  } else if (gateReady) {
+    capstone.classList.remove('locked');
+    capText.textContent = 'All three lessons walked. The Snap Quiz is unlocked.';
+  } else {
+    capstone.classList.add('locked');
+    const need = LESSONS.slice(0, 3).filter(n => p['lesson' + n] !== 'complete');
+    capText.textContent = `Complete lesson${need.length > 1 ? 's' : ''} ${need.join(', ')} to unlock the Snap Quiz.`;
+  }
+
+  const quizStats = document.getElementById('quizStats');
+  if (p.quizBest != null) {
+    quizStats.textContent = `Capstone best: ${p.quizBest}/10`;
+  }
+
+  document.querySelectorAll('#skillList li').forEach(li => {
+    const requires = parseInt(li.dataset.unlock, 10);
+    if (p['lesson' + requires] === 'complete') li.classList.add('unlocked');
+    else li.classList.remove('unlocked');
+  });
+}
+
+document.getElementById('resetLink').addEventListener('click', () => {
+  if (confirm('Reset module progress? This clears completed lessons and quiz scores.')) {
+    localStorage.removeItem(PROGRESS_KEY);
+    render();
+  }
+});
+
+render();
+window.addEventListener('focus', render);
+</script>
+
+</body>
+</html>
