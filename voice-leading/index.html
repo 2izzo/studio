@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Module 5: Voice Leading</title>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+    --lock: #4a4252;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .kicker { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 3px; }
+  h1 { font-weight: 400; font-size: 32px; margin: 4px 0 8px; color: var(--warm); }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; max-width: 680px; }
+  h2 { font-weight: 400; font-size: 12px; margin: 28px 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+
+  .progress-wrap { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 16px 20px; margin-bottom: 24px; }
+  .progress-stats { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .progress-stats strong { color: var(--warm); font-size: 14px; }
+  .progress-bar { background: #14111a; height: 6px; border-radius: 3px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--warm), var(--accent)); height: 100%; transition: width 0.5s ease; }
+
+  .grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .path { display: flex; flex-direction: column; gap: 0; position: relative; }
+  .lesson {
+    display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center;
+    padding: 18px 20px;
+    background: var(--panel); border: 1px solid var(--grid); border-radius: 6px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .lesson:hover { border-color: var(--warm); }
+  .lesson.complete { border-color: var(--green); }
+  .lesson.current { border-color: var(--warm); box-shadow: 0 0 24px rgba(212,163,115,0.15); }
+
+  .lesson-num {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--panel-2); border: 2px solid var(--grid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--muted);
+  }
+  .lesson.complete .lesson-num { background: var(--green); color: var(--bg); border-color: var(--green); }
+  .lesson.current .lesson-num { border-color: var(--warm); color: var(--warm); }
+
+  .lesson-body h3 { margin: 0 0 4px; font-weight: 400; font-size: 16px; color: var(--ink); }
+  .lesson-body p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .lesson-body .tags { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 2px 8px; background: #14111a; border-radius: 10px; color: var(--muted); }
+
+  .lesson-action {
+    padding: 10px 18px; border: 1px solid var(--grid); border-radius: 4px;
+    background: transparent; color: var(--muted); font-family: inherit; font-size: 12px;
+    text-decoration: none; white-space: nowrap;
+  }
+  .lesson .lesson-action { border-color: var(--warm); color: var(--warm); }
+  .lesson .lesson-action:hover { background: var(--warm); color: var(--bg); }
+  .lesson.complete .lesson-action { border-color: var(--green); color: var(--green); }
+  .lesson.complete .lesson-action:hover { background: var(--green); color: var(--bg); }
+
+  .capstone { margin-top: 20px; padding: 24px; background: linear-gradient(135deg, #1f1a28, #241e2d); border: 1px dashed var(--warm); border-radius: 6px; text-align: center; }
+  .capstone.locked { border-color: var(--grid); border-style: dashed; opacity: 0.6; }
+  .capstone h3 { color: var(--warm); margin: 0 0 6px; font-weight: 400; font-size: 18px; }
+  .capstone p { color: var(--muted); margin: 0 0 14px; font-size: 12px; }
+  .capstone-btn {
+    display: inline-block; padding: 12px 28px; border-radius: 4px;
+    background: var(--warm); color: var(--bg); text-decoration: none;
+    font-size: 13px; letter-spacing: 1px;
+  }
+  .capstone-btn:hover { background: var(--accent); color: var(--bg); }
+  .capstone.locked .capstone-btn { background: var(--lock); color: var(--muted); cursor: not-allowed; pointer-events: none; }
+
+  .sidebar { display: flex; flex-direction: column; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 18px; }
+  .card h4 { margin: 0 0 12px; font-weight: 400; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .skill-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+  .skill-list li { padding: 6px 0; border-bottom: 1px solid var(--grid); color: var(--muted); }
+  .skill-list li:last-child { border-bottom: none; }
+  .skill-list li.unlocked { color: var(--green); }
+  .skill-list li.unlocked::before { content: '✓ '; color: var(--green); }
+  .skill-list li:not(.unlocked)::before { content: '○ '; color: var(--lock); }
+
+  .glossary details { border-bottom: 1px solid var(--grid); padding: 8px 0; }
+  .glossary details:last-child { border-bottom: none; }
+  .glossary summary { cursor: pointer; color: var(--warm); font-size: 12px; list-style: none; }
+  .glossary summary::-webkit-details-marker { display: none; }
+  .glossary summary::before { content: '▸ '; transition: transform 0.2s; display: inline-block; }
+  .glossary details[open] summary::before { content: '▾ '; }
+  .glossary-def { margin-top: 6px; padding: 6px 0 4px 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .glossary-def code { color: var(--warm); background: #14111a; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+  .prereq { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+  .prereq a { color: var(--accent); }
+
+  .reset-link { font-size: 10px; color: var(--lock); text-align: center; display: block; margin-top: 20px; cursor: pointer; }
+  .reset-link:hover { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="kicker">Studio · Module 5</div>
+    <h1>Voice Leading</h1>
+  </div>
+</div>
+<p class="sub">Same four notes, a hundred different voicings. Voice leading is the craft of choosing — at every chord change — the voicing that moves the fewest notes the shortest distance. Do it well and arrangements sound smooth, composed, professional. Do it badly and every chord change sounds like a jump cut.</p>
+<p class="prereq">Prereq (optional): <a href="../chord-progressions/01-lofi-lab.html">Module 1 — Chord Progressions</a> gives you the chord vocabulary these lessons move between.</p>
+
+<div class="progress-wrap">
+  <div class="progress-stats">
+    <span><strong id="completedCount">0</strong> of 4 lessons complete</span>
+    <span id="quizStats">Capstone: not attempted</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+
+<div class="grid">
+  <div>
+    <h2>The Path</h2>
+
+    <a href="01-common-tones.html" class="lesson" id="lesson1" data-lesson="1">
+      <div class="lesson-num">1</div>
+      <div class="lesson-body">
+        <h3>Common Tones</h3>
+        <p>Two chords almost always share notes. Find them. Those are the notes that <em>don't</em> move — the anchor your ear hangs onto when everything else shifts.</p>
+        <div class="tags">
+          <span class="tag">shared notes</span>
+          <span class="tag">anchor voices</span>
+          <span class="tag">semitone cost</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="02-smallest-move.html" class="lesson" id="lesson2" data-lesson="2">
+      <div class="lesson-num">2</div>
+      <div class="lesson-body">
+        <h3>Smallest Move</h3>
+        <p>Same Chord B, three voicings. Pick the one that moves fewest semitones from Chord A. The winner is always the one that feels like the chords are breathing, not jumping.</p>
+        <div class="tags">
+          <span class="tag">inversions</span>
+          <span class="tag">optimization</span>
+          <span class="tag">voicing choice</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="03-circle-walk.html" class="lesson" id="lesson3" data-lesson="3">
+      <div class="lesson-num">3</div>
+      <div class="lesson-body">
+        <h3>The Circle Walk</h3>
+        <p>Progressions chain. Walk through ii–V–I and the circle of fifths twice — once with dumb root-position chords, once with smart voicings. Hear the difference. It's not subtle.</p>
+        <div class="tags">
+          <span class="tag">ii–V–I</span>
+          <span class="tag">circle of fifths</span>
+          <span class="tag">greedy algorithm</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="04-quiz.html" class="lesson" id="lesson4" data-lesson="4">
+      <div class="lesson-num">4</div>
+      <div class="lesson-body">
+        <h3>Snap Quiz — Which Voicing Leads Better?</h3>
+        <p>Ten rounds. Each round: one Chord A, three voicings of Chord B. Pick the one with the smallest total motion. Seven right to pass.</p>
+        <div class="tags">
+          <span class="tag">voicing ID</span>
+          <span class="tag">ear + math</span>
+          <span class="tag">score tracking</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <div class="capstone" id="capstone">
+      <h3 id="capstoneTitle">✦ Module Capstone</h3>
+      <p id="capstoneText">Complete the first three lessons to unlock the Snap Quiz. Pass it, and this module earns its ✓.</p>
+      <a href="04-quiz.html" class="capstone-btn" id="capstoneBtn">Take the Quiz</a>
+    </div>
+  </div>
+
+  <div class="sidebar">
+
+    <div class="card">
+      <h4>What You Can Do</h4>
+      <ul class="skill-list" id="skillList">
+        <li data-unlock="1">Spot shared notes between any two chords</li>
+        <li data-unlock="1">Measure a chord change in semitones of motion</li>
+        <li data-unlock="2">Pick the smoothest voicing of a target chord</li>
+        <li data-unlock="2">Read inversions as voice-leading tools, not theory trivia</li>
+        <li data-unlock="3">Voice-lead through ii–V–I and circle-of-fifths progressions</li>
+        <li data-unlock="3">Hear the gap between dumb and smart voicings</li>
+        <li data-unlock="4">Identify the smoothest voicing under time pressure</li>
+      </ul>
+    </div>
+
+    <div class="card glossary">
+      <h4>Glossary</h4>
+      <details>
+        <summary>Voice leading</summary>
+        <div class="glossary-def">The craft of moving from one chord to the next by making each voice (note) travel as little as possible. The difference between a choir sounding like a choir and sounding like four soloists hitting chords together.</div>
+      </details>
+      <details>
+        <summary>Common tone</summary>
+        <div class="glossary-def">A note that appears in both of two consecutive chords. A <code>C</code> is common to both <code>C</code> and <code>Am</code>, so it can hold (stay put) across the change.</div>
+      </details>
+      <details>
+        <summary>Semitone</summary>
+        <div class="glossary-def">The smallest interval in Western music — one fret on a guitar, one key on a piano (black or white). The unit we measure voice motion in. <code>C → C#</code> = 1 semitone.</div>
+      </details>
+      <details>
+        <summary>Inversion</summary>
+        <div class="glossary-def">A voicing where a non-root note is in the bass. <code>C/E</code> means a C major chord with E on the bottom (first inversion). Inversions exist mostly to make voice leading smoother.</div>
+      </details>
+      <details>
+        <summary>Root position</summary>
+        <div class="glossary-def">A voicing where the chord's root is the lowest note. <code>C E G</code> for C major. Easy to play, easy to teach, usually the worst choice for voice leading.</div>
+      </details>
+      <details>
+        <summary>ii–V–I</summary>
+        <div class="glossary-def">The most common three-chord progression in Western music, especially jazz. In C: <code>Dm7 → G7 → Cmaj7</code>. Its power comes almost entirely from how beautifully the voice leading works when you voice it right.</div>
+      </details>
+      <details>
+        <summary>Circle of fifths</summary>
+        <div class="glossary-def">A loop through all 12 roots where each chord's root is a fifth below the previous. Progressions that follow the circle voice-lead themselves — that's why they feel "inevitable."</div>
+      </details>
+      <details>
+        <summary>Greedy algorithm</summary>
+        <div class="glossary-def">A strategy that makes the locally best choice at every step, without looking ahead. Voice leading is one of the rare musical problems where greedy actually works — pick the smoothest move each time, and the whole progression takes care of itself.</div>
+      </details>
+      <details>
+        <summary>Parallel motion</summary>
+        <div class="glossary-def">When two voices move the same direction by the same interval. Parallel fifths and octaves are the famous counter-example in classical voice leading — they make the voices feel like they've merged. Avoided traditionally, used on purpose in rock and metal (power chords).</div>
+      </details>
+      <details>
+        <summary>Contrary motion</summary>
+        <div class="glossary-def">When two voices move in opposite directions — one up while the other goes down. The sound of <em>independence</em> between voices, and the classical fix for parallel-motion problems.</div>
+      </details>
+    </div>
+
+    <span class="reset-link" id="resetLink">reset module progress</span>
+  </div>
+</div>
+
+<script>
+const PROGRESS_KEY = 'rizzo-studio-voice-leading';
+const LESSONS = [1, 2, 3, 4];
+
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+function render() {
+  const p = loadProgress();
+  let completed = 0;
+  let firstIncomplete = null;
+
+  LESSONS.forEach(n => {
+    const el = document.getElementById('lesson' + n);
+    el.classList.remove('complete', 'current');
+
+    const isComplete = p['lesson' + n] === 'complete';
+    if (isComplete) {
+      completed++;
+      el.classList.add('complete');
+      el.querySelector('.lesson-action').textContent = 'review';
+    } else if (!firstIncomplete) {
+      firstIncomplete = n;
+      el.classList.add('current');
+      el.querySelector('.lesson-action').textContent = '▶ open';
+    } else {
+      el.querySelector('.lesson-action').textContent = '▶ open';
+    }
+  });
+
+  document.getElementById('completedCount').textContent = completed;
+  document.getElementById('progressFill').style.width = (completed / 4 * 100) + '%';
+
+  const gateReady = p.lesson1 === 'complete' && p.lesson2 === 'complete' && p.lesson3 === 'complete';
+  const capstone = document.getElementById('capstone');
+  const capText = document.getElementById('capstoneText');
+  const capTitle = document.getElementById('capstoneTitle');
+  if (p.lesson4 === 'complete') {
+    capstone.classList.remove('locked');
+    capTitle.textContent = '✓ Module Complete';
+    capText.innerHTML = `You passed the Snap Quiz — best: <strong style="color:var(--green)">${p.quizBest || '?'}/10</strong>. Retake anytime.`;
+    document.getElementById('capstoneBtn').textContent = 'Retake Quiz';
+  } else if (gateReady) {
+    capstone.classList.remove('locked');
+    capText.textContent = 'All three lessons walked. The Snap Quiz is unlocked.';
+  } else {
+    capstone.classList.add('locked');
+    const need = LESSONS.slice(0, 3).filter(n => p['lesson' + n] !== 'complete');
+    capText.textContent = `Complete lesson${need.length > 1 ? 's' : ''} ${need.join(', ')} to unlock the Snap Quiz.`;
+  }
+
+  const quizStats = document.getElementById('quizStats');
+  if (p.quizBest != null) {
+    quizStats.textContent = `Capstone best: ${p.quizBest}/10`;
+  }
+
+  document.querySelectorAll('#skillList li').forEach(li => {
+    const requires = parseInt(li.dataset.unlock, 10);
+    if (p['lesson' + requires] === 'complete') li.classList.add('unlocked');
+    else li.classList.remove('unlocked');
+  });
+}
+
+document.getElementById('resetLink').addEventListener('click', () => {
+  if (confirm('Reset module progress? This clears completed lessons and quiz scores.')) {
+    localStorage.removeItem(PROGRESS_KEY);
+    render();
+  }
+});
+
+render();
+window.addEventListener('focus', render);
+</script>
+
+</body>
+</html>

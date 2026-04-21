@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — The Circle Walk</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --red: #c47d7d;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 16px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.bad { background: var(--panel); border-color: var(--red); color: var(--red); }
+  button.bad:hover { background: var(--red); color: var(--bg); }
+  button.good { background: var(--panel); border-color: var(--green); color: var(--green); }
+  button.good:hover { background: var(--green); color: var(--bg); }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  .lesson-nav { display: flex; justify-content: space-between; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--grid); font-size: 12px; color: var(--muted); }
+
+  .prog-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .prog-btn { padding: 8px 14px; font-size: 12px; background: var(--panel-2); border: 1px solid var(--grid); color: var(--ink); border-radius: 4px; cursor: pointer; font-family: inherit; }
+  .prog-btn:hover { border-color: var(--warm); color: var(--warm); }
+  .prog-btn.active { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+
+  /* CHORD RAIL */
+  .rail-title { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin: 20px 0 10px; }
+  .chord-rail { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+  .chord-card {
+    min-width: 110px; flex: 1 0 110px;
+    background: var(--panel-deep); border-radius: 6px; padding: 12px;
+    border: 1px solid var(--grid);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    transition: all 0.2s;
+  }
+  .chord-card.playing { border-color: var(--warm); box-shadow: 0 0 14px rgba(212,163,115,0.35); }
+  .chord-card .cname { color: var(--warm); font-size: 15px; }
+  .chord-card .cnotes { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+  .chord-card .n-pill {
+    background: var(--panel-2); border: 1px solid var(--grid);
+    padding: 3px 9px; border-radius: 3px;
+    font-size: 11px; min-width: 44px; text-align: center;
+  }
+  .chord-card .n-pill.stay { background: var(--green); color: var(--bg); border-color: var(--green); }
+  .chord-card .n-pill.move { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  .chord-card .c-step-cost {
+    font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+  .chord-card .c-step-cost strong { color: var(--ink); font-size: 14px; font-family: ui-monospace, monospace; }
+
+  .totals {
+    margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .total-box { background: var(--panel-deep); padding: 16px; border-radius: 6px; text-align: center; }
+  .total-box .tname { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .total-box.bad .tnum { color: var(--red); }
+  .total-box.good .tnum { color: var(--green); }
+  .total-box .tnum { font-size: 30px; font-family: ui-monospace, monospace; }
+  .total-box .tsub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  .transport { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .mode-toggle {
+    display: inline-flex; background: var(--panel-deep); border: 1px solid var(--grid);
+    border-radius: 4px; padding: 3px;
+  }
+  .mode-toggle button {
+    border: none; background: transparent; color: var(--muted); font-size: 11px;
+    padding: 6px 12px;
+  }
+  .mode-toggle button.active { background: var(--warm); color: var(--bg); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div style="font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;">
+  <a href="index.html">← Voice Leading</a>
+</div>
+
+<h1>The Circle Walk</h1>
+<p class="sub">Progressions chain. Good voice leading is greedy at every step. Here's what greedy sounds like vs what random sounds like.</p>
+
+<div class="panel">
+  <h2>Pick a progression</h2>
+  <div class="prog-row" id="prog-row"></div>
+
+  <div class="mode-toggle" style="margin-bottom: 12px;">
+    <button id="mode-smart" class="active">Smart voicings</button>
+    <button id="mode-dumb">Root position</button>
+  </div>
+
+  <div class="rail-title">Chords, in order</div>
+  <div class="chord-rail" id="rail"></div>
+
+  <div class="totals">
+    <div class="total-box" id="total-dumb-box">
+      <div class="tname">Root-position total</div>
+      <div class="tnum" id="total-dumb">—</div>
+      <div class="tsub">semitones of motion</div>
+    </div>
+    <div class="total-box" id="total-smart-box">
+      <div class="tname">Smart total</div>
+      <div class="tnum" id="total-smart">—</div>
+      <div class="tsub">semitones of motion</div>
+    </div>
+  </div>
+
+  <div class="transport">
+    <button id="play-seq" class="primary">▶ Play current voicing</button>
+    <button id="play-compare">▶ Play both (dumb first)</button>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Why greedy works</h2>
+  <p style="font-size: 12px; line-height: 1.7;">
+    You don't need to plan ahead. At each chord change, pick the voicing that moves the fewest notes — that's it.
+    Over a 4-bar loop or an 8-chord cycle, the difference between always-root-position and always-nearest can be
+    20+ semitones of unnecessary motion. Your ear hears that extra motion as "choppy" or "undergrad piano recital."
+    The smooth version sounds like someone who knows what they're doing, even when the actual harmonic content is
+    identical.
+  </p>
+  <button class="complete-btn" id="complete-btn">Mark lesson complete</button>
+</div>
+
+<div class="lesson-nav">
+  <span><a href="02-smallest-move.html">← Smallest Move</a></span>
+  <span>Lesson 3 of 4</span>
+  <span><a href="04-quiz.html">Quiz →</a></span>
+</div>
+
+<script>
+  const PROGRESS_KEY = 'rizzo-studio-voice-leading';
+
+  // Each progression has:
+  //   dumb: all root-position voicings (naive)
+  //   smart: hand-picked smooth voicings (minimized motion at each step)
+  const PROGRESSIONS = [
+    {
+      label: 'ii–V–I in C',
+      dumb: [
+        { name: 'Dm7',   pitches: ['D3','F3','A3','C4'] },
+        { name: 'G7',    pitches: ['G3','B3','D4','F4'] },
+        { name: 'Cmaj7', pitches: ['C4','E4','G4','B4'] },
+      ],
+      smart: [
+        { name: 'Dm7',   pitches: ['D4','F4','A4','C5'] },
+        { name: 'G7',    pitches: ['D4','F4','G4','B4'] },
+        { name: 'Cmaj7', pitches: ['C4','E4','G4','B4'] },
+      ],
+    },
+    {
+      label: 'I–vi–IV–V',
+      dumb: [
+        { name: 'C',  pitches: ['C3','E3','G3'] },
+        { name: 'Am', pitches: ['A3','C4','E4'] },
+        { name: 'F',  pitches: ['F3','A3','C4'] },
+        { name: 'G',  pitches: ['G3','B3','D4'] },
+      ],
+      smart: [
+        { name: 'C',  pitches: ['C4','E4','G4'] },
+        { name: 'Am', pitches: ['C4','E4','A4'] },
+        { name: 'F',  pitches: ['C4','F4','A4'] },
+        { name: 'G',  pitches: ['B3','D4','G4'] },
+      ],
+    },
+    {
+      label: 'Circle in 4ths (C–F–Bb–Eb)',
+      dumb: [
+        { name: 'C',   pitches: ['C3','E3','G3'] },
+        { name: 'F',   pitches: ['F3','A3','C4'] },
+        { name: 'Bb',  pitches: ['A#3','D4','F4'] },
+        { name: 'Eb',  pitches: ['D#4','G4','A#4'] },
+      ],
+      smart: [
+        { name: 'C',   pitches: ['C4','E4','G4'] },
+        { name: 'F',   pitches: ['C4','F4','A4'] },
+        { name: 'Bb',  pitches: ['A#3','D4','F4'] },
+        { name: 'Eb',  pitches: ['A#3','D#4','G4'] },
+      ],
+    },
+    {
+      label: 'vi–IV–I–V (pop loop)',
+      dumb: [
+        { name: 'Am', pitches: ['A3','C4','E4'] },
+        { name: 'F',  pitches: ['F3','A3','C4'] },
+        { name: 'C',  pitches: ['C3','E3','G3'] },
+        { name: 'G',  pitches: ['G3','B3','D4'] },
+      ],
+      smart: [
+        { name: 'Am', pitches: ['A3','C4','E4'] },
+        { name: 'F',  pitches: ['A3','C4','F4'] },
+        { name: 'C',  pitches: ['G3','C4','E4'] },
+        { name: 'G',  pitches: ['G3','B3','D4'] },
+      ],
+    },
+  ];
+
+  const toMidi = p => Tone.Frequency(p).toMidi();
+
+  function connect(chordA, chordB) {
+    const aM = chordA.map(toMidi), bM = chordB.map(toMidi);
+    const usedB = new Set();
+    const links = [];
+    aM.forEach((a, ai) => {
+      let best = -1, bestDist = Infinity;
+      bM.forEach((b, bi) => {
+        if (usedB.has(bi)) return;
+        const d = Math.abs(a - b);
+        if (d < bestDist) { bestDist = d; best = bi; }
+      });
+      if (best !== -1) { usedB.add(best); links.push({ fromIdx: ai, toIdx: best, fromPitch: chordA[ai], toPitch: chordB[best], dist: bestDist }); }
+    });
+    return links;
+  }
+
+  function progCost(chords) {
+    let total = 0, stepCosts = [0];
+    for (let i = 1; i < chords.length; i++) {
+      const links = connect(chords[i - 1].pitches, chords[i].pitches);
+      const step = links.reduce((s, l) => s + l.dist, 0);
+      total += step;
+      stepCosts.push(step);
+    }
+    return { total, stepCosts };
+  }
+
+  function stepLinks(prevPitches, currPitches) {
+    return connect(prevPitches, currPitches);
+  }
+
+  let synth;
+  function ensureSynth() {
+    if (!synth) {
+      synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.02, decay: 0.3, sustain: 0.6, release: 0.8 }
+      }).toDestination();
+      synth.volume.value = -10;
+    }
+  }
+
+  async function playProg(chords, onStep) {
+    await Tone.start();
+    ensureSynth();
+    const t0 = Tone.now();
+    const STEP = 1.1;
+    chords.forEach((c, i) => {
+      synth.triggerAttackRelease(c.pitches, STEP - 0.05, t0 + i * STEP);
+      setTimeout(() => onStep && onStep(i), i * STEP * 1000);
+    });
+    setTimeout(() => onStep && onStep(-1), chords.length * STEP * 1000);
+  }
+
+  let current = PROGRESSIONS[0];
+  let mode = 'smart';
+
+  function render() {
+    document.querySelectorAll('.prog-btn').forEach(b => b.classList.remove('active'));
+    const pb = document.querySelector(`.prog-btn[data-idx="${PROGRESSIONS.indexOf(current)}"]`);
+    if (pb) pb.classList.add('active');
+
+    document.getElementById('mode-smart').classList.toggle('active', mode === 'smart');
+    document.getElementById('mode-dumb').classList.toggle('active', mode === 'dumb');
+
+    const chords = mode === 'smart' ? current.smart : current.dumb;
+    const rail = document.getElementById('rail');
+    rail.innerHTML = '';
+
+    chords.forEach((c, i) => {
+      const card = document.createElement('div');
+      card.className = 'chord-card';
+      card.dataset.i = i;
+
+      const name = document.createElement('div');
+      name.className = 'cname';
+      name.textContent = c.name;
+      card.appendChild(name);
+
+      const notesEl = document.createElement('div');
+      notesEl.className = 'cnotes';
+
+      // Determine stays vs moves vs enters from prev-to-this
+      const stays = new Set();
+      const moves = new Set();
+      if (i > 0) {
+        const links = stepLinks(chords[i - 1].pitches, c.pitches);
+        links.forEach(l => {
+          if (l.dist === 0) stays.add(l.toPitch);
+          else moves.add(l.toPitch);
+        });
+      }
+
+      c.pitches.slice().reverse().forEach(p => {
+        const pill = document.createElement('div');
+        pill.className = 'n-pill';
+        if (stays.has(p)) pill.classList.add('stay');
+        else if (moves.has(p)) pill.classList.add('move');
+        pill.textContent = p;
+        notesEl.appendChild(pill);
+      });
+      card.appendChild(notesEl);
+
+      const cost = document.createElement('div');
+      cost.className = 'c-step-cost';
+      if (i === 0) cost.textContent = 'start';
+      else {
+        const links = stepLinks(chords[i - 1].pitches, c.pitches);
+        const step = links.reduce((s, l) => s + l.dist, 0);
+        cost.innerHTML = `+<strong>${step}</strong> smt`;
+      }
+      card.appendChild(cost);
+
+      rail.appendChild(card);
+    });
+
+    // Totals
+    const dumbRes = progCost(current.dumb);
+    const smartRes = progCost(current.smart);
+    document.getElementById('total-dumb').textContent = dumbRes.total;
+    document.getElementById('total-smart').textContent = smartRes.total;
+    document.getElementById('total-dumb-box').classList.toggle('bad', dumbRes.total > smartRes.total);
+    document.getElementById('total-smart-box').classList.toggle('good', smartRes.total <= dumbRes.total);
+  }
+
+  function buildProgButtons() {
+    const row = document.getElementById('prog-row');
+    PROGRESSIONS.forEach((p, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'prog-btn';
+      btn.dataset.idx = i;
+      btn.textContent = p.label;
+      btn.addEventListener('click', () => { current = p; render(); });
+      row.appendChild(btn);
+    });
+  }
+
+  document.getElementById('mode-smart').addEventListener('click', () => { mode = 'smart'; render(); });
+  document.getElementById('mode-dumb').addEventListener('click', () => { mode = 'dumb'; render(); });
+
+  function highlightPlaying(i) {
+    document.querySelectorAll('.chord-card').forEach(c => c.classList.remove('playing'));
+    if (i >= 0) {
+      const c = document.querySelector(`.chord-card[data-i="${i}"]`);
+      if (c) c.classList.add('playing');
+    }
+  }
+
+  document.getElementById('play-seq').addEventListener('click', () => {
+    const chords = mode === 'smart' ? current.smart : current.dumb;
+    playProg(chords, highlightPlaying);
+  });
+
+  document.getElementById('play-compare').addEventListener('click', async () => {
+    playProg(current.dumb, highlightPlaying);
+    const gap = (current.dumb.length + 0.6) * 1.1 * 1000;
+    setTimeout(() => playProg(current.smart, highlightPlaying), gap);
+  });
+
+  function markComplete() {
+    const prog = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+    prog.lesson3 = 'complete';
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(prog));
+    const btn = document.getElementById('complete-btn');
+    btn.classList.add('done');
+    btn.textContent = 'Complete ✓';
+    btn.disabled = true;
+  }
+  const prog = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+  if (prog.lesson3 === 'complete') {
+    const btn = document.getElementById('complete-btn');
+    btn.classList.add('done');
+    btn.textContent = 'Complete ✓';
+    btn.disabled = true;
+  }
+  document.getElementById('complete-btn').addEventListener('click', markComplete);
+
+  buildProgButtons();
+  render();
+</script>
+
+</body>
+</html>
