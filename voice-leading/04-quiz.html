@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Voice Leading Quiz</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --red: #c47d7d;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1000px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 16px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .lesson-nav { display: flex; justify-content: space-between; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--grid); font-size: 12px; color: var(--muted); }
+
+  /* SCOREBAR */
+  .scorebar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 18px;
+  }
+  .score-group { display: flex; gap: 18px; align-items: center; font-size: 13px; }
+  .score-num { color: var(--warm); font-size: 18px; font-family: ui-monospace, monospace; }
+  .score-label { color: var(--muted); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; }
+  .progress-dots { display: flex; gap: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--grid); }
+  .dot.right { background: var(--green); border-color: var(--green); }
+  .dot.wrong { background: var(--red); border-color: var(--red); }
+  .dot.current { background: var(--warm); border-color: var(--warm); }
+
+  /* QUESTION PANEL */
+  .q-panel { background: var(--panel-deep); padding: 20px; border-radius: 6px; margin-bottom: 16px; }
+  .q-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .q-title { color: var(--muted); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
+  .q-chords { color: var(--warm); font-size: 20px; letter-spacing: 1px; }
+
+  .anchor-strip {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: var(--panel-2); padding: 12px; border-radius: 4px; margin-bottom: 16px;
+  }
+  .anchor-strip .lbl { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .anchor-strip .chord-pill { color: var(--warm); font-size: 14px; }
+  .anchor-strip .notes { display: flex; gap: 4px; }
+  .anchor-strip .npill { background: var(--warm); color: var(--bg); padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+
+  /* OPTIONS */
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  .choice {
+    background: var(--panel); border: 1px solid var(--grid); border-radius: 6px;
+    padding: 14px; cursor: pointer; transition: all 0.15s;
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+  }
+  .choice:hover:not(.locked) { border-color: var(--warm); }
+  .choice.picked { border-color: var(--warm); }
+  .choice.right { border-color: var(--green); background: rgba(143,185,156,0.08); }
+  .choice.wrong { border-color: var(--red); background: rgba(196,125,125,0.08); }
+  .choice.locked { cursor: default; }
+  .choice-letter { color: var(--muted); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; }
+  .choice-notes { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+  .choice-notes .np { background: var(--accent); color: var(--bg); padding: 3px 7px; border-radius: 3px; font-size: 10px; }
+  .choice .reveal { font-size: 10px; color: var(--muted); text-align: center; display: none; }
+  .choice.locked .reveal { display: block; }
+  .choice .reveal strong { color: var(--ink); font-family: ui-monospace, monospace; font-size: 14px; }
+  .choice.right .reveal strong { color: var(--green); }
+
+  /* ACTIONS */
+  .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; flex-wrap: wrap; gap: 10px; }
+  .actions .left, .actions .right { display: flex; gap: 10px; flex-wrap: wrap; }
+  .explain { font-size: 12px; color: var(--ink); padding: 12px; background: var(--panel-2); border-radius: 4px; margin-top: 12px; display: none; }
+  .explain.show { display: block; }
+  .explain.right-answer { color: var(--green); }
+  .explain.wrong-answer { color: var(--ink); }
+
+  /* RESULT */
+  .result { display: none; text-align: center; padding: 32px; }
+  .result.show { display: block; }
+  .result.show + .q-panel, .result.show ~ .q-panel { display: none; }
+  .result h2 { font-size: 16px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+  .result .score-big { font-size: 64px; color: var(--warm); font-family: ui-monospace, monospace; }
+  .result .verdict { font-size: 14px; margin-top: 12px; }
+  .result .verdict.pass { color: var(--green); }
+  .result .verdict.fail { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div style="font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;">
+  <a href="index.html">← Voice Leading</a>
+</div>
+
+<h1>Voice Leading Quiz</h1>
+<p class="sub">Ten rounds. Pick the voicing that moves fewest semitones. Seven correct to pass.</p>
+
+<div class="scorebar">
+  <div class="score-group">
+    <div>
+      <div class="score-label">Round</div>
+      <span class="score-num" id="round-num">1</span><span style="color: var(--muted); font-size: 13px;">/10</span>
+    </div>
+    <div>
+      <div class="score-label">Score</div>
+      <span class="score-num" id="score-num">0</span><span style="color: var(--muted); font-size: 13px;">/10</span>
+    </div>
+  </div>
+  <div class="progress-dots" id="dots"></div>
+</div>
+
+<div class="q-panel" id="q-panel">
+  <div class="q-header">
+    <div class="q-title">Which voicing of B has the smoothest voice leading?</div>
+    <div class="q-chords" id="q-chords">C → F</div>
+  </div>
+
+  <div class="anchor-strip">
+    <span class="lbl">Chord A</span>
+    <span class="chord-pill" id="a-name">C</span>
+    <div class="notes" id="a-notes"></div>
+  </div>
+
+  <div class="choices" id="choices"></div>
+
+  <div class="explain" id="explain"></div>
+
+  <div class="actions">
+    <div class="left">
+      <button id="btn-play-a">▶ Play A</button>
+      <button id="btn-play-picked" disabled>▶ Play pick</button>
+    </div>
+    <div class="right">
+      <button id="btn-submit" class="primary" disabled>Lock answer</button>
+      <button id="btn-next" class="primary" disabled>Next →</button>
+    </div>
+  </div>
+</div>
+
+<div class="result" id="result">
+  <h2>Quiz complete</h2>
+  <div class="score-big" id="result-score">—</div>
+  <div class="verdict" id="result-verdict"></div>
+  <div style="margin-top: 24px;">
+    <button id="btn-retry">Try again</button>
+    <a href="index.html"><button>Back to module</button></a>
+  </div>
+</div>
+
+<div class="lesson-nav">
+  <span><a href="03-circle-walk.html">← Circle Walk</a></span>
+  <span>Lesson 4 of 4</span>
+  <span>Module capstone</span>
+</div>
+
+<script>
+  const PROGRESS_KEY = 'rizzo-studio-voice-leading';
+  const PASS_THRESHOLD = 7;
+  const ROUNDS = 10;
+
+  const toMidi = p => Tone.Frequency(p).toMidi();
+  function connect(chordA, chordB) {
+    const aM = chordA.map(toMidi), bM = chordB.map(toMidi);
+    const usedB = new Set(); const links = [];
+    aM.forEach((a, ai) => {
+      let best = -1, bestDist = Infinity;
+      bM.forEach((b, bi) => {
+        if (usedB.has(bi)) return;
+        const d = Math.abs(a - b);
+        if (d < bestDist) { bestDist = d; best = bi; }
+      });
+      if (best !== -1) { usedB.add(best); links.push({ dist: bestDist, fromPitch: chordA[ai], toPitch: chordB[best] }); }
+    });
+    return links;
+  }
+  function cost(a, b) { return connect(a, b).reduce((s, l) => s + l.dist, 0); }
+
+  // QUESTION BANK — 16 questions, 10 sampled per quiz
+  const BANK = [
+    {
+      aName: 'C',  bName: 'F',  aPitches: ['C4','E4','G4'],
+      options: [
+        ['F3','A3','C4'],
+        ['C4','F4','A4'],
+        ['A4','C5','F5'],
+      ]
+    },
+    {
+      aName: 'C',  bName: 'Am', aPitches: ['C4','E4','G4'],
+      options: [
+        ['A3','C4','E4'],
+        ['C4','E4','A4'],
+        ['E4','A4','C5'],
+      ]
+    },
+    {
+      aName: 'G',  bName: 'C',  aPitches: ['G3','B3','D4'],
+      options: [
+        ['C4','E4','G4'],
+        ['G3','C4','E4'],
+        ['E4','G4','C5'],
+      ]
+    },
+    {
+      aName: 'Dm', bName: 'G',  aPitches: ['D4','F4','A4'],
+      options: [
+        ['G3','B3','D4'],
+        ['D4','G4','B4'],
+        ['B3','D4','G4'],
+      ]
+    },
+    {
+      aName: 'F',  bName: 'G',  aPitches: ['F3','A3','C4'],
+      options: [
+        ['G3','B3','D4'],
+        ['B3','D4','G4'],
+        ['D4','G4','B4'],
+      ]
+    },
+    {
+      aName: 'Am', bName: 'F',  aPitches: ['A3','C4','E4'],
+      options: [
+        ['F3','A3','C4'],
+        ['A3','C4','F4'],
+        ['C4','F4','A4'],
+      ]
+    },
+    {
+      aName: 'Em', bName: 'Am', aPitches: ['E4','G4','B4'],
+      options: [
+        ['A3','C4','E4'],
+        ['C4','E4','A4'],
+        ['E4','A4','C5'],
+      ]
+    },
+    {
+      aName: 'Cmaj7', bName: 'Fmaj7', aPitches: ['C4','E4','G4','B4'],
+      options: [
+        ['F3','A3','C4','E4'],
+        ['C4','E4','F4','A4'],
+        ['A3','C4','E4','F4'],
+      ]
+    },
+    {
+      aName: 'Dm7', bName: 'G7', aPitches: ['D4','F4','A4','C5'],
+      options: [
+        ['G3','B3','D4','F4'],
+        ['D4','F4','G4','B4'],
+        ['B3','D4','F4','G4'],
+      ]
+    },
+    {
+      aName: 'G7', bName: 'Cmaj7', aPitches: ['G3','B3','D4','F4'],
+      options: [
+        ['C4','E4','G4','B4'],
+        ['G3','B3','C4','E4'],
+        ['E4','G4','B4','C5'],
+      ]
+    },
+    {
+      aName: 'Am', bName: 'Dm', aPitches: ['A3','C4','E4'],
+      options: [
+        ['D3','F3','A3'],
+        ['A3','D4','F4'],
+        ['F4','A4','D5'],
+      ]
+    },
+    {
+      aName: 'F',  bName: 'C',  aPitches: ['F3','A3','C4'],
+      options: [
+        ['C4','E4','G4'],
+        ['G3','C4','E4'],
+        ['E4','G4','C5'],
+      ]
+    },
+    {
+      aName: 'D',  bName: 'A',  aPitches: ['D4','F#4','A4'],
+      options: [
+        ['A3','C#4','E4'],
+        ['C#4','E4','A4'],
+        ['E4','A4','C#5'],
+      ]
+    },
+    {
+      aName: 'Bb', bName: 'F',  aPitches: ['A#3','D4','F4'],
+      options: [
+        ['F3','A3','C4'],
+        ['C4','F4','A4'],
+        ['A3','C4','F4'],
+      ]
+    },
+    {
+      aName: 'C',  bName: 'Dm', aPitches: ['C4','E4','G4'],
+      options: [
+        ['D3','F3','A3'],
+        ['D4','F4','A4'],
+        ['F4','A4','D5'],
+      ]
+    },
+    {
+      aName: 'Em', bName: 'G',  aPitches: ['E4','G4','B4'],
+      options: [
+        ['G3','B3','D4'],
+        ['D4','G4','B4'],
+        ['B3','D4','G4'],
+      ]
+    },
+  ];
+
+  // Pick winner: option with lowest cost. If tie, first wins.
+  function findWinner(q) {
+    let bestI = 0, bestCost = Infinity;
+    q.options.forEach((opt, i) => {
+      const c = cost(q.aPitches, opt);
+      if (c < bestCost) { bestCost = c; bestI = i; }
+    });
+    return { index: bestI, cost: bestCost };
+  }
+
+  // Sample ROUNDS questions from BANK (no repeats)
+  function sampleBank() {
+    const shuffled = [...BANK].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, ROUNDS);
+  }
+
+  let questions = sampleBank();
+  let round = 0;
+  let score = 0;
+  let picked = -1;
+  let locked = false;
+  const history = []; // { correct: bool }
+
+  let synth;
+  function ensureSynth() {
+    if (!synth) {
+      synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.02, decay: 0.3, sustain: 0.6, release: 0.8 }
+      }).toDestination();
+      synth.volume.value = -10;
+    }
+  }
+  async function playChord(chord, dur = 1.3) {
+    await Tone.start(); ensureSynth();
+    synth.triggerAttackRelease(chord, dur);
+  }
+  async function playTransition(a, b) {
+    await Tone.start(); ensureSynth();
+    const t = Tone.now();
+    synth.triggerAttackRelease(a, 1.2, t);
+    synth.triggerAttackRelease(b, 1.5, t + 1.2);
+  }
+
+  function renderDots() {
+    const el = document.getElementById('dots');
+    el.innerHTML = '';
+    for (let i = 0; i < ROUNDS; i++) {
+      const d = document.createElement('span');
+      d.className = 'dot';
+      if (i < history.length) d.classList.add(history[i].correct ? 'right' : 'wrong');
+      else if (i === round) d.classList.add('current');
+      el.appendChild(d);
+    }
+  }
+
+  function renderQuestion() {
+    const q = questions[round];
+    document.getElementById('round-num').textContent = round + 1;
+    document.getElementById('score-num').textContent = score;
+    document.getElementById('q-chords').textContent = `${q.aName} → ${q.bName}`;
+    document.getElementById('a-name').textContent = q.aName;
+    const aNotes = document.getElementById('a-notes');
+    aNotes.innerHTML = '';
+    q.aPitches.forEach(p => {
+      const pill = document.createElement('span');
+      pill.className = 'npill';
+      pill.textContent = p;
+      aNotes.appendChild(pill);
+    });
+
+    const choices = document.getElementById('choices');
+    choices.innerHTML = '';
+    q.options.forEach((opt, i) => {
+      const card = document.createElement('div');
+      card.className = 'choice';
+      card.dataset.i = i;
+      card.innerHTML = `
+        <div class="choice-letter">Option ${String.fromCharCode(65 + i)}</div>
+        <div class="choice-notes">${opt.map(p => `<span class="np">${p}</span>`).join('')}</div>
+        <div class="reveal"><strong>${cost(q.aPitches, opt)}</strong> semitones</div>
+      `;
+      card.addEventListener('click', () => {
+        if (locked) return;
+        picked = i;
+        document.querySelectorAll('.choice').forEach(c => c.classList.remove('picked'));
+        card.classList.add('picked');
+        document.getElementById('btn-submit').disabled = false;
+        document.getElementById('btn-play-picked').disabled = false;
+      });
+      choices.appendChild(card);
+    });
+
+    picked = -1;
+    locked = false;
+    document.getElementById('btn-submit').disabled = true;
+    document.getElementById('btn-play-picked').disabled = true;
+    document.getElementById('btn-next').disabled = true;
+    document.getElementById('explain').classList.remove('show');
+    document.getElementById('explain').classList.remove('right-answer', 'wrong-answer');
+
+    renderDots();
+  }
+
+  function submit() {
+    if (picked === -1 || locked) return;
+    locked = true;
+    const q = questions[round];
+    const winner = findWinner(q);
+    const correct = picked === winner.index;
+    if (correct) score++;
+    history.push({ correct });
+
+    document.querySelectorAll('.choice').forEach((c, i) => {
+      c.classList.add('locked');
+      if (i === winner.index) c.classList.add('right');
+      else if (i === picked && !correct) c.classList.add('wrong');
+    });
+
+    const exEl = document.getElementById('explain');
+    const winnerCost = winner.cost;
+    const pickedCost = cost(q.aPitches, q.options[picked]);
+    if (correct) {
+      exEl.textContent = `Right — Option ${String.fromCharCode(65 + winner.index)} moves only ${winnerCost} semitone${winnerCost === 1 ? '' : 's'} total.`;
+      exEl.classList.add('right-answer');
+    } else {
+      exEl.innerHTML = `Option ${String.fromCharCode(65 + winner.index)} was smoother — <strong>${winnerCost}</strong> semitones vs your ${pickedCost}.`;
+      exEl.classList.add('wrong-answer');
+    }
+    exEl.classList.add('show');
+    document.getElementById('btn-submit').disabled = true;
+    document.getElementById('btn-next').disabled = false;
+    document.getElementById('score-num').textContent = score;
+    renderDots();
+  }
+
+  function next() {
+    round++;
+    if (round >= ROUNDS) {
+      showResult();
+    } else {
+      renderQuestion();
+    }
+  }
+
+  function showResult() {
+    document.getElementById('q-panel').style.display = 'none';
+    const r = document.getElementById('result');
+    r.classList.add('show');
+    document.getElementById('result-score').textContent = `${score}/${ROUNDS}`;
+    const v = document.getElementById('result-verdict');
+    // Track best score regardless of pass/fail
+    const prog = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+    if (!prog.quizBest || score > prog.quizBest) prog.quizBest = score;
+    if (score >= PASS_THRESHOLD) {
+      v.textContent = `Pass. You hear voice leading now. Capstone unlocked.`;
+      v.className = 'verdict pass';
+      prog.lesson4 = 'complete';
+    } else {
+      v.textContent = `Try again — you need ${PASS_THRESHOLD}/${ROUNDS} to pass.`;
+      v.className = 'verdict fail';
+    }
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(prog));
+  }
+
+  function retry() {
+    questions = sampleBank();
+    round = 0; score = 0;
+    history.length = 0;
+    document.getElementById('result').classList.remove('show');
+    document.getElementById('q-panel').style.display = '';
+    renderQuestion();
+  }
+
+  document.getElementById('btn-submit').addEventListener('click', submit);
+  document.getElementById('btn-next').addEventListener('click', next);
+  document.getElementById('btn-retry').addEventListener('click', retry);
+  document.getElementById('btn-play-a').addEventListener('click', () => {
+    playChord(questions[round].aPitches);
+  });
+  document.getElementById('btn-play-picked').addEventListener('click', () => {
+    if (picked === -1) return;
+    playTransition(questions[round].aPitches, questions[round].options[picked]);
+  });
+
+  renderQuestion();
+</script>
+
+</body>
+</html>

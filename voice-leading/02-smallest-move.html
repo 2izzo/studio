@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Smallest Move</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --red: #c47d7d;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1100px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 16px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+  .lesson-nav { display: flex; justify-content: space-between; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--grid); font-size: 12px; color: var(--muted); }
+
+  .pair-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .pair-btn {
+    padding: 8px 14px; font-size: 12px; background: var(--panel-2);
+    border: 1px solid var(--grid); color: var(--ink); border-radius: 4px;
+    cursor: pointer; font-family: inherit;
+  }
+  .pair-btn:hover { border-color: var(--warm); color: var(--warm); }
+  .pair-btn.active { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+
+  /* ANCHOR CHORD */
+  .anchor {
+    background: var(--panel-deep); padding: 14px; border-radius: 6px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    margin-bottom: 20px;
+  }
+  .anchor-label { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .anchor-chord { color: var(--warm); font-size: 20px; }
+  .anchor-notes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .note-pill {
+    background: var(--warm); color: var(--bg); padding: 4px 10px;
+    border-radius: 3px; font-size: 12px; font-weight: 500;
+  }
+
+  /* VOICINGS */
+  .voicings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .voicing {
+    background: var(--panel-deep); padding: 16px; border-radius: 6px;
+    border: 1px solid var(--grid); display: flex; flex-direction: column; gap: 10px;
+  }
+  .voicing.winner { border-color: var(--green); box-shadow: 0 0 0 2px rgba(143,185,156,0.18); }
+  .voicing.revealed.loser { opacity: 0.7; }
+  .voicing-title { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 2px; text-align: center; }
+  .voicing-notes { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+  .note-pill.b { background: var(--accent); color: var(--bg); }
+  .voicing-cost {
+    background: var(--panel-2); padding: 8px; border-radius: 4px;
+    font-size: 11px; color: var(--muted); text-align: center;
+  }
+  .voicing-cost .n { font-size: 22px; color: var(--ink); display: block; font-family: ui-monospace, monospace; }
+  .voicing.winner .voicing-cost .n { color: var(--green); }
+  .voicing-actions { display: flex; gap: 6px; justify-content: center; }
+  .voicing-actions button { font-size: 11px; padding: 6px 10px; }
+  .voicing-lines { font-size: 10px; color: var(--muted); line-height: 1.6; }
+  .voicing-lines .stay { color: var(--green); }
+  .voicing-lines .move { color: var(--warm); }
+
+  .banner {
+    background: var(--panel-hi); padding: 12px; border-radius: 6px;
+    margin-top: 16px; color: var(--green); font-size: 12px; display: none;
+  }
+  .banner.show { display: block; }
+</style>
+</head>
+<body>
+
+<div style="font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;">
+  <a href="index.html">← Voice Leading</a>
+</div>
+
+<h1>Smallest Move</h1>
+<p class="sub">Same Chord B, three ways to voice it. The best voicing is the one your ear barely notices changing.</p>
+
+<div class="panel">
+  <h2>Pick a progression</h2>
+  <div class="pair-row" id="pair-row"></div>
+
+  <div class="anchor">
+    <div class="anchor-label">Chord A — fixed</div>
+    <div class="anchor-chord" id="anchor-name">C</div>
+    <div class="anchor-notes" id="anchor-notes"></div>
+  </div>
+
+  <h2>Pick a voicing for Chord B — <span id="chord-b-name" style="color: var(--accent);">F</span></h2>
+  <div class="voicings" id="voicings"></div>
+
+  <div class="banner" id="banner">
+    The green-bordered voicing is the smallest move. Notice how your ear glides over the change instead of jumping.
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Why this matters</h2>
+  <p style="font-size: 12px; line-height: 1.7;">
+    Every chord can be voiced a hundred different ways. Root position, first inversion, second inversion, drop-2,
+    widely spaced, tightly clustered. The cost of a chord change is how far each voice has to travel to get from
+    A to B. Professional voicings minimize that cost — and the smoothness is what makes arrangements sound
+    polished instead of like stacked block chords. The skill is pattern recognition: see the next chord, find the
+    voicing that shares the most notes with the one you just played.
+  </p>
+  <button class="complete-btn" id="complete-btn">Mark lesson complete</button>
+</div>
+
+<div class="lesson-nav">
+  <span><a href="01-common-tones.html">← Common Tones</a></span>
+  <span>Lesson 2 of 4</span>
+  <span><a href="03-circle-walk.html">Circle Walk →</a></span>
+</div>
+
+<script>
+  const PROGRESS_KEY = 'rizzo-studio-voice-leading';
+
+  // ANCHOR: fixed Chord A for each progression
+  // B-VOICINGS: three voicings of Chord B to choose from
+  // Winner is computed from lowest total semitone distance.
+  const PROGRESSIONS = [
+    {
+      label: 'C → F',
+      aName: 'C', bName: 'F',
+      anchor: ['C4','E4','G4'],
+      voicings: [
+        { name: 'Root position', pitches: ['F3','A3','C4'] },
+        { name: 'First inv',     pitches: ['A3','C4','F4'] },
+        { name: 'Second inv',    pitches: ['C4','F4','A4'] },
+      ]
+    },
+    {
+      label: 'C → Am',
+      aName: 'C', bName: 'Am',
+      anchor: ['C4','E4','G4'],
+      voicings: [
+        { name: 'Root position', pitches: ['A3','C4','E4'] },
+        { name: 'First inv',     pitches: ['C4','E4','A4'] },
+        { name: 'Second inv',    pitches: ['E4','A4','C5'] },
+      ]
+    },
+    {
+      label: 'Dm → G',
+      aName: 'Dm', bName: 'G',
+      anchor: ['D4','F4','A4'],
+      voicings: [
+        { name: 'Root position', pitches: ['G3','B3','D4'] },
+        { name: 'First inv',     pitches: ['B3','D4','G4'] },
+        { name: 'Second inv',    pitches: ['D4','G4','B4'] },
+      ]
+    },
+    {
+      label: 'G → C',
+      aName: 'G', bName: 'C',
+      anchor: ['G3','B3','D4'],
+      voicings: [
+        { name: 'Root position', pitches: ['C4','E4','G4'] },
+        { name: 'First inv',     pitches: ['E3','G3','C4'] },
+        { name: 'Second inv',    pitches: ['G3','C4','E4'] },
+      ]
+    },
+    {
+      label: 'Am → F',
+      aName: 'Am', bName: 'F',
+      anchor: ['A3','C4','E4'],
+      voicings: [
+        { name: 'Root position', pitches: ['F3','A3','C4'] },
+        { name: 'First inv',     pitches: ['A3','C4','F4'] },
+        { name: 'Second inv',    pitches: ['C4','F4','A4'] },
+      ]
+    },
+    {
+      label: 'Cmaj7 → Fmaj7',
+      aName: 'Cmaj7', bName: 'Fmaj7',
+      anchor: ['C4','E4','G4','B4'],
+      voicings: [
+        { name: 'Root position', pitches: ['F3','A3','C4','E4'] },
+        { name: 'First inv',     pitches: ['A3','C4','E4','F4'] },
+        { name: 'Second inv',    pitches: ['C4','E4','F4','A4'] },
+      ]
+    },
+  ];
+
+  const toMidi = p => Tone.Frequency(p).toMidi();
+
+  function connect(chordA, chordB) {
+    const aMidis = chordA.map(toMidi);
+    const bMidis = chordB.map(toMidi);
+    const usedB = new Set();
+    const links = [];
+    aMidis.forEach((a, ai) => {
+      let best = -1, bestDist = Infinity;
+      bMidis.forEach((b, bi) => {
+        if (usedB.has(bi)) return;
+        const d = Math.abs(a - b);
+        if (d < bestDist) { bestDist = d; best = bi; }
+      });
+      if (best !== -1) { usedB.add(best); links.push({ fromIdx: ai, toIdx: best, fromPitch: chordA[ai], toPitch: chordB[best], dist: bestDist }); }
+    });
+    return links;
+  }
+
+  function totalCost(links) { return links.reduce((s, l) => s + l.dist, 0); }
+
+  let synth;
+  function ensureSynth() {
+    if (!synth) {
+      synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.02, decay: 0.3, sustain: 0.6, release: 0.9 }
+      }).toDestination();
+      synth.volume.value = -10;
+    }
+  }
+
+  async function playTransition(anchor, bChord) {
+    await Tone.start();
+    ensureSynth();
+    const t = Tone.now();
+    synth.triggerAttackRelease(anchor, 1.3, t);
+    synth.triggerAttackRelease(bChord, 1.8, t + 1.4);
+  }
+
+  async function playOne(chord) {
+    await Tone.start();
+    ensureSynth();
+    synth.triggerAttackRelease(chord, 1.4);
+  }
+
+  let current = PROGRESSIONS[0];
+  let revealed = false;
+
+  function render() {
+    // Pair picker
+    document.querySelectorAll('.pair-btn').forEach(b => b.classList.remove('active'));
+    const activeBtn = document.querySelector(`.pair-btn[data-idx="${PROGRESSIONS.indexOf(current)}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Anchor display
+    document.getElementById('anchor-name').textContent = current.aName;
+    document.getElementById('chord-b-name').textContent = current.bName;
+    const notesEl = document.getElementById('anchor-notes');
+    notesEl.innerHTML = '';
+    current.anchor.forEach(n => {
+      const pill = document.createElement('span');
+      pill.className = 'note-pill';
+      pill.textContent = n;
+      notesEl.appendChild(pill);
+    });
+
+    // Compute costs
+    const results = current.voicings.map(v => {
+      const links = connect(current.anchor, v.pitches);
+      return { ...v, links, cost: totalCost(links) };
+    });
+    const minCost = Math.min(...results.map(r => r.cost));
+
+    // Render voicings
+    const wrap = document.getElementById('voicings');
+    wrap.innerHTML = '';
+    results.forEach((r, i) => {
+      const el = document.createElement('div');
+      el.className = 'voicing';
+      if (revealed) {
+        el.classList.add('revealed');
+        if (r.cost === minCost) el.classList.add('winner');
+        else el.classList.add('loser');
+      }
+
+      const title = document.createElement('div');
+      title.className = 'voicing-title';
+      title.textContent = r.name;
+      el.appendChild(title);
+
+      const notes = document.createElement('div');
+      notes.className = 'voicing-notes';
+      r.pitches.forEach(p => {
+        const pill = document.createElement('span');
+        pill.className = 'note-pill b';
+        pill.textContent = p;
+        notes.appendChild(pill);
+      });
+      el.appendChild(notes);
+
+      const cost = document.createElement('div');
+      cost.className = 'voicing-cost';
+      cost.innerHTML = `<span class="n">${r.cost}</span>semitone${r.cost === 1 ? '' : 's'} of motion`;
+      el.appendChild(cost);
+
+      const lines = document.createElement('div');
+      lines.className = 'voicing-lines';
+      lines.innerHTML = r.links.map(l => {
+        if (l.dist === 0) return `<div><span class="stay">${l.fromPitch} stays</span></div>`;
+        return `<div><span class="move">${l.fromPitch} → ${l.toPitch}</span> (${l.dist})</div>`;
+      }).join('');
+      el.appendChild(lines);
+
+      const actions = document.createElement('div');
+      actions.className = 'voicing-actions';
+      const playBtn = document.createElement('button');
+      playBtn.className = 'primary';
+      playBtn.textContent = '▶ A → B';
+      playBtn.addEventListener('click', () => {
+        playTransition(current.anchor, r.pitches);
+        revealed = true;
+        render();
+        document.getElementById('banner').classList.add('show');
+      });
+      actions.appendChild(playBtn);
+
+      const bBtn = document.createElement('button');
+      bBtn.textContent = '▶ B only';
+      bBtn.addEventListener('click', () => playOne(r.pitches));
+      actions.appendChild(bBtn);
+
+      el.appendChild(actions);
+      wrap.appendChild(el);
+    });
+  }
+
+  function buildPairButtons() {
+    const row = document.getElementById('pair-row');
+    PROGRESSIONS.forEach((p, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'pair-btn';
+      btn.dataset.idx = i;
+      btn.textContent = p.label;
+      btn.addEventListener('click', () => {
+        current = p;
+        revealed = false;
+        document.getElementById('banner').classList.remove('show');
+        render();
+      });
+      row.appendChild(btn);
+    });
+  }
+
+  // Progress
+  function markComplete() {
+    const prog = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+    prog.lesson2 = 'complete';
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(prog));
+    const btn = document.getElementById('complete-btn');
+    btn.classList.add('done');
+    btn.textContent = 'Complete ✓';
+    btn.disabled = true;
+  }
+  const prog = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+  if (prog.lesson2 === 'complete') {
+    const btn = document.getElementById('complete-btn');
+    btn.classList.add('done');
+    btn.textContent = 'Complete ✓';
+    btn.disabled = true;
+  }
+  document.getElementById('complete-btn').addEventListener('click', markComplete);
+
+  buildPairButtons();
+  render();
+</script>
+
+</body>
+</html>

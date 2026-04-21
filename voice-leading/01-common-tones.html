@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Common Tones</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi: #302438;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1100px;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button {
+    font-family: inherit; font-size: 13px; padding: 10px 16px;
+    border: 1px solid var(--grid); background: var(--panel);
+    color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+
+  .lesson-nav { display: flex; justify-content: space-between; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--grid); font-size: 12px; color: var(--muted); }
+
+  /* PAIR PICKER */
+  .pair-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .pair-btn {
+    padding: 8px 14px; font-size: 12px; background: var(--panel-2);
+    border: 1px solid var(--grid); color: var(--ink); border-radius: 4px;
+    cursor: pointer; font-family: inherit;
+  }
+  .pair-btn:hover { border-color: var(--warm); color: var(--warm); }
+  .pair-btn.active { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+
+  /* CHORD DISPLAY */
+  .chord-stage {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .chord-box { background: var(--panel-deep); border-radius: 6px; padding: 12px; }
+  .chord-title { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 2px; text-align: center; margin-bottom: 8px; }
+  .chord-name { color: var(--warm); font-size: 22px; text-align: center; margin-bottom: 12px; letter-spacing: 1px; }
+  .chord-stack { display: flex; flex-direction: column; gap: 2px; }
+  .note-cell {
+    padding: 6px 10px; background: var(--panel-2);
+    border: 1px solid var(--grid); border-radius: 3px;
+    font-size: 12px; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center;
+    transition: all 0.15s;
+  }
+  .note-cell.active { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  .note-cell.shared { background: var(--green); color: var(--bg); border-color: var(--green); }
+  .note-cell.playing { box-shadow: 0 0 8px rgba(232,223,211,0.6); }
+  .note-cell .note-name { font-weight: 500; }
+  .note-cell .hint { font-size: 9px; opacity: 0.8; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* MOTION PANEL */
+  .motion-panel {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: var(--panel-2); border-radius: 6px; padding: 10px;
+    font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+  }
+  .motion-arrow { font-size: 24px; color: var(--warm); margin: 8px 0; }
+  .motion-num { color: var(--ink); font-size: 20px; font-family: ui-monospace, monospace; }
+  .motion-label { margin-top: 4px; font-size: 9px; }
+
+  /* METRICS */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .metric { background: var(--panel-deep); border-radius: 6px; padding: 14px; text-align: center; }
+  .metric-num { font-size: 28px; color: var(--warm); font-family: ui-monospace, monospace; }
+  .metric-num.good { color: var(--green); }
+  .metric-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
+
+  /* TRANSPORT */
+  .transport { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+
+  /* VOICE LINES */
+  .voices { margin-top: 12px; padding: 14px; background: var(--panel-2); border-radius: 6px; font-size: 12px; color: var(--muted); }
+  .voices ul { margin: 8px 0 0; padding-left: 18px; }
+  .voices li { margin: 4px 0; color: var(--ink); }
+  .voices li .stay { color: var(--green); }
+  .voices li .move { color: var(--warm); }
+</style>
+</head>
+<body>
+
+<div style="font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;">
+  <a href="index.html">← Voice Leading</a>
+</div>
+
+<h1>Common Tones</h1>
+<p class="sub">Two chords almost always share notes. When they do, keep them still. That's voice leading.</p>
+
+<div class="panel">
+  <h2>Pick a chord pair</h2>
+  <div class="pair-row" id="pair-row"></div>
+
+  <div class="chord-stage">
+    <div class="chord-box">
+      <div class="chord-title">Chord A</div>
+      <div class="chord-name" id="chord-a-name">C</div>
+      <div class="chord-stack" id="chord-a"></div>
+    </div>
+    <div class="motion-panel">
+      <div class="motion-label">Shared</div>
+      <div class="motion-num" id="shared-count">2</div>
+      <div class="motion-arrow">→</div>
+      <div class="motion-label">Semitones</div>
+      <div class="motion-num" id="total-motion">2</div>
+    </div>
+    <div class="chord-box">
+      <div class="chord-title">Chord B</div>
+      <div class="chord-name" id="chord-b-name">Am</div>
+      <div class="chord-stack" id="chord-b"></div>
+    </div>
+  </div>
+
+  <div class="transport">
+    <button id="play-a" class="primary">▶ Chord A</button>
+    <button id="play-b">▶ Chord B</button>
+    <button id="play-both">▶ A → B</button>
+  </div>
+
+  <div class="voices" id="voices"></div>
+</div>
+
+<div class="panel">
+  <h2>What you're hearing</h2>
+  <p style="font-size: 12px; line-height: 1.7;">
+    The <span style="color: var(--green);">green notes</span> stay — same pitch, both chords. Your ear hears
+    them as the <em>anchor</em>. The <span style="color: var(--warm);">warm notes</span> are the ones that have to
+    actually move, and the number of semitones they travel is the "cost" of the move. Low cost = smooth.
+    High cost = the chord change feels like a jump cut. Same four notes in different voicings can make a 5-semitone
+    move or a 1-semitone move. That's the whole game.
+  </p>
+  <button class="complete-btn" id="complete-btn">Mark lesson complete</button>
+</div>
+
+<div class="lesson-nav">
+  <span>Lesson 1 of 4</span>
+  <a href="02-smallest-move.html">Smallest Move →</a>
+</div>
+
+<script>
+  const PROGRESS_KEY = 'rizzo-studio-voice-leading';
+
+  const CHORDS = {
+    'C':     ['C4','E4','G4'],
+    'Am':    ['A3','C4','E4'],
+    'F':     ['F3','A3','C4'],
+    'G':     ['G3','B3','D4'],
+    'Dm':    ['D3','F3','A3'],
+    'Em':    ['E3','G3','B3'],
+    'Cmaj7': ['C4','E4','G4','B4'],
+    'Am7':   ['A3','C4','E4','G4'],
+    'Fmaj7': ['F3','A3','C4','E4'],
+    'G7':    ['G3','B3','D4','F4'],
+    'Dm7':   ['D3','F3','A3','C4'],
+  };
+
+  const PAIRS = [
+    { a: 'C',     b: 'Am' },
+    { a: 'C',     b: 'F' },
+    { a: 'C',     b: 'G' },
+    { a: 'Am',    b: 'Em' },
+    { a: 'Dm',    b: 'G' },
+    { a: 'F',     b: 'G' },
+    { a: 'Cmaj7', b: 'Am7' },
+    { a: 'Dm7',   b: 'G7' },
+    { a: 'G7',    b: 'Cmaj7' },
+  ];
+
+  // Display range: C5 top, C3 bottom
+  const DISPLAY_PITCHES = [
+    'C5','B4','A4','G4','F4','E4','D4','C4','B3','A3','G3','F3','E3','D3','C3'
+  ];
+
+  // Utility: normalize pitch name (A#4 → Bb4 not needed, we use sharps throughout)
+  function toMidi(p) { return Tone.Frequency(p).toMidi(); }
+  function noteClass(p) { return toMidi(p) % 12; }
+
+  // Voice leading: match each A-note to its closest B-note (minimize total semitone distance)
+  function connectVoices(chordA, chordB) {
+    // chordA, chordB: arrays of pitch names
+    // We'll do a simple greedy nearest-neighbor. For chords of size 3-4 this is fine.
+    const aMidis = chordA.map(toMidi);
+    const bMidis = chordB.map(toMidi);
+
+    // Handle size mismatch: pad shorter to match (for simplicity we treat as array-same-size for the pairs we use).
+    // For 7ths (4 notes) with triads (3 notes), we'd need a different approach, but our PAIRS keep sizes consistent.
+
+    const usedB = new Set();
+    const links = [];
+    // For each A-note, find closest B-note not yet used
+    aMidis.forEach((a, ai) => {
+      let best = -1, bestDist = Infinity;
+      bMidis.forEach((b, bi) => {
+        if (usedB.has(bi)) return;
+        const d = Math.abs(a - b);
+        if (d < bestDist) { bestDist = d; best = bi; }
+      });
+      if (best !== -1) {
+        usedB.add(best);
+        links.push({ fromIdx: ai, toIdx: best, fromPitch: chordA[ai], toPitch: chordB[best], dist: bestDist });
+      }
+    });
+
+    // If chord B had more notes than A, any unused B-notes are new voices entering (dist = ∞ not meaningful).
+    // For our data that doesn't happen.
+    return links;
+  }
+
+  function computeMetrics(links) {
+    const shared = links.filter(l => l.dist === 0).length;
+    const motion = links.reduce((sum, l) => sum + l.dist, 0);
+    return { shared, motion };
+  }
+
+  // Render one chord stack
+  function renderChord(el, chord, sharedPcs) {
+    el.innerHTML = '';
+    const pcs = new Set(chord.map(noteClass));
+    DISPLAY_PITCHES.forEach(pitch => {
+      const cell = document.createElement('div');
+      cell.className = 'note-cell';
+      cell.dataset.pitch = pitch;
+      const pc = noteClass(pitch);
+      const present = chord.includes(pitch);
+      const isShared = present && sharedPcs.has(pc);
+      if (present) cell.classList.add('active');
+      if (isShared) { cell.classList.remove('active'); cell.classList.add('shared'); }
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'note-name';
+      nameEl.textContent = pitch;
+
+      const hintEl = document.createElement('span');
+      hintEl.className = 'hint';
+      if (isShared) hintEl.textContent = 'stays';
+      else if (present) hintEl.textContent = 'moves';
+      else hintEl.textContent = '';
+
+      cell.appendChild(nameEl);
+      cell.appendChild(hintEl);
+      el.appendChild(cell);
+    });
+  }
+
+  // --- STATE ---
+  let current = PAIRS[0];
+  let synth;
+
+  function ensureSynth() {
+    if (!synth) {
+      synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.02, decay: 0.3, sustain: 0.6, release: 0.9 }
+      }).toDestination();
+      synth.volume.value = -10;
+    }
+  }
+
+  async function playChord(chord, dur = 1.4) {
+    await Tone.start();
+    ensureSynth();
+    synth.triggerAttackRelease(chord, dur);
+    highlightPlaying(chord);
+  }
+
+  async function playSequence() {
+    await Tone.start();
+    ensureSynth();
+    const t = Tone.now();
+    synth.triggerAttackRelease(current.a === current.b ? [] : CHORDS[current.a], 1.2, t);
+    synth.triggerAttackRelease(CHORDS[current.b], 1.8, t + 1.3);
+    highlightPlaying(CHORDS[current.a]);
+    setTimeout(() => highlightPlaying(CHORDS[current.b]), 1300);
+  }
+
+  function highlightPlaying(chord) {
+    document.querySelectorAll('.note-cell.playing').forEach(c => c.classList.remove('playing'));
+    // Only highlight cells that are active (part of a rendered chord)
+    chord.forEach(p => {
+      document.querySelectorAll(`.note-cell[data-pitch="${p}"]`).forEach(c => {
+        if (c.classList.contains('active') || c.classList.contains('shared')) {
+          c.classList.add('playing');
+        }
+      });
+    });
+    setTimeout(() => {
+      document.querySelectorAll('.note-cell.playing').forEach(c => c.classList.remove('playing'));
+    }, 900);
+  }
+
+  function renderVoices(links) {
+    const el = document.getElementById('voices');
+    const lines = links.map((l, i) => {
+      if (l.dist === 0) {
+        return `<li>Voice ${i + 1}: <span class="stay">${l.fromPitch} stays</span></li>`;
+      }
+      return `<li>Voice ${i + 1}: <span class="move">${l.fromPitch} → ${l.toPitch}</span> <span style="color: var(--muted);">(${l.dist} semitone${l.dist > 1 ? 's' : ''})</span></li>`;
+    }).join('');
+    el.innerHTML = `<strong style="color: var(--ink);">Voice motion:</strong><ul>${lines}</ul>`;
+  }
+
+  function render() {
+    const chordA = CHORDS[current.a];
+    const chordB = CHORDS[current.b];
+    const links = connectVoices(chordA, chordB);
+    const { shared, motion } = computeMetrics(links);
+
+    // Shared pitch-classes for highlighting
+    const sharedPcs = new Set();
+    links.forEach(l => { if (l.dist === 0) sharedPcs.add(noteClass(l.fromPitch)); });
+
+    document.getElementById('chord-a-name').textContent = current.a;
+    document.getElementById('chord-b-name').textContent = current.b;
+    renderChord(document.getElementById('chord-a'), chordA, sharedPcs);
+    renderChord(document.getElementById('chord-b'), chordB, sharedPcs);
+    document.getElementById('shared-count').textContent = shared;
+    document.getElementById('total-motion').textContent = motion;
+
+    renderVoices(links);
+
+    // Active pair button
+    document.querySelectorAll('.pair-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`.pair-btn[data-idx="${PAIRS.indexOf(current)}"]`);
+    if (btn) btn.classList.add('active');
+  }
+
+  function buildPairButtons() {
+    const row = document.getElementById('pair-row');
+    PAIRS.forEach((p, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'pair-btn';
+      btn.dataset.idx = i;
+      btn.textContent = `${p.a} → ${p.b}`;
+      btn.addEventListener('click', () => { current = p; render(); });
+      row.appendChild(btn);
+    });
+  }
+
+  // Transport wiring
+  document.getElementById('play-a').addEventListener('click', () => playChord(CHORDS[current.a]));
+  document.getElementById('play-b').addEventListener('click', () => playChord(CHORDS[current.b]));
+  document.getElementById('play-both').addEventListener('click', playSequence);
+
+  // Progress tracking
+  function markComplete() {
+    const prog = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+    prog.lesson1 = 'complete';
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(prog));
+    const btn = document.getElementById('complete-btn');
+    btn.classList.add('done');
+    btn.textContent = 'Complete ✓';
+    btn.disabled = true;
+  }
+  const prog = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+  if (prog.lesson1 === 'complete') {
+    const btn = document.getElementById('complete-btn');
+    btn.classList.add('done');
+    btn.textContent = 'Complete ✓';
+    btn.disabled = true;
+  }
+  document.getElementById('complete-btn').addEventListener('click', markComplete);
+
+  buildPairButtons();
+  render();
+</script>
+
+</body>
+</html>
