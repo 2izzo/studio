@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — The Progression Swapper</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.5;
+    max-width: 1200px; margin: 0 auto;
+  }
+  nav a:hover { color: var(--accent) !important; }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  .transport { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button { font-family: inherit; font-size: 13px; padding: 10px 20px; border: 1px solid var(--grid);
+           background: var(--panel); color: var(--ink); border-radius: 4px; cursor: pointer; }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  .now-playing { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .now-playing .lbl { color: var(--warm); }
+
+  .selector { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  @media (max-width: 860px) { .selector { grid-template-columns: repeat(2, 1fr); } }
+  .prog-card {
+    padding: 14px; border: 1px solid var(--grid); border-radius: 4px;
+    background: #1f1a28; cursor: pointer; transition: all 0.2s;
+    font-size: 12px; color: var(--ink);
+  }
+  .prog-card:hover { border-color: var(--accent); }
+  .prog-card.active { border-color: var(--warm); background: #302438; box-shadow: 0 0 20px rgba(212,163,115,0.2); }
+  .prog-card .key { color: var(--warm); font-size: 13px; margin-bottom: 4px; }
+  .prog-card .numerals { color: var(--muted); font-size: 11px; }
+  .prog-card .hotkey { float: right; color: var(--accent); font-size: 10px; opacity: 0.7; }
+
+  .chord-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .chord-row.eight { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, auto); }
+  @media (max-width: 600px) { .chord-row, .chord-row.eight { grid-template-columns: repeat(2, 1fr); } }
+  .chord {
+    padding: 14px; border: 1px solid var(--grid); border-radius: 4px;
+    background: #1f1a28; transition: all 0.15s;
+  }
+  .chord.active { border-color: var(--warm); background: #302438; box-shadow: 0 0 20px rgba(212,163,115,0.2); }
+  .chord .numeral { font-size: 20px; color: var(--warm); }
+  .chord .name { font-size: 13px; color: var(--ink); margin: 4px 0; }
+  .chord .notes { font-size: 11px; color: var(--muted); }
+
+  .why { font-size: 13px; color: var(--ink); }
+  .why code { background: #14111a; padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+
+  .experiment { font-size: 13px; color: var(--muted); font-style: italic; border-left: 2px solid var(--accent); padding-left: 14px; }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 16px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+</style>
+</head>
+<body>
+
+<nav style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding:10px 14px; background:#241e2d; border:1px solid #3a3244; border-radius:6px; font-size:12px; color:#8a7f92;">
+  <a href="01-lofi-lab.html" style="color:#d4a373; text-decoration:none;">← Lesson 1: Lofi Loop Lab</a>
+  <span>Lesson 2 of 4 — The Progression Swapper</span>
+  <a href="03-transformation.html" style="color:#d4a373; text-decoration:none;">Next: The Transformation →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, #302438, #241e2d); border:1px solid #d4a373; border-radius:6px; padding:14px 18px; margin-bottom:20px; color:#d4a373; font-size:13px;">
+  ✓ Lesson 2 marked complete. <a href="index.html" style="color:#c17a9c;">Back to module →</a>
+</div>
+
+<h1>~ The Progression Swapper ~</h1>
+<p class="sub">Same key. Same tempo. Same instruments. Five progressions. Hear how the numerals carry the genre.</p>
+
+<div class="panel" style="padding: 12px;">
+  <canvas id="scope" width="1200" height="140" style="width:100%; height:140px; display:block; background:#14111a; border-radius:4px;"></canvas>
+</div>
+
+<div class="panel">
+  <div class="transport">
+    <button id="play" class="primary">▶ play</button>
+    <button id="stop">■ stop</button>
+    <span style="color: var(--muted); margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px;">
+      <label for="vol" style="color: var(--muted);">vol</label>
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" style="width: 80px; accent-color: #d4a373;">
+      <span style="width: 28px; text-align: right;" id="volVal">80%</span>
+    </span>
+    <span class="now-playing">Now playing: <span class="lbl" id="nowLabel">—</span> · 80 BPM</span>
+  </div>
+</div>
+
+<h2>Pick a Progression</h2>
+<div class="panel">
+  <div class="selector" id="selector"></div>
+  <div style="margin-top:10px; color: var(--muted); font-size: 11px;">Tip: press <span style="color:var(--warm);">Space</span> to play/stop · press <span style="color:var(--warm);">1–5</span> to swap progressions</div>
+</div>
+
+<h2>Current Progression</h2>
+<div class="panel">
+  <div class="chord-row" id="chords"></div>
+</div>
+
+<h2>Why This Works</h2>
+<div class="panel why" id="why">Select a progression above to read the reasoning.</div>
+
+<h2>The Experiment</h2>
+<div class="panel">
+  <p class="experiment">Try this: hit play on Pop. Let it loop twice so your ear locks in. Then switch to Doo-Wop without stopping. Notice how the vi chord appearing in a different slot completely shifts the emotional arc. Nothing else changed — same key, same tempo, same Rhodes. That's the power of numerals.</p>
+
+  <p style="color: var(--muted); font-size: 12px; margin-top: 20px;">When you can hear the family of a progression without looking at the chord cards:</p>
+  <button id="markComplete" class="complete-btn">Mark Lesson 2 Complete ✓</button>
+</div>
+
+<script>
+// ============================================================
+// THE FIVE PROGRESSIONS
+// ============================================================
+const progressions = {
+  'pop': {
+    label: 'Pop · I–V–vi–IV',
+    numerals: 'I–V–vi–IV',
+    why: `<strong style="color:var(--warm);">The "Axis of Awesome" progression.</strong> The <code>I→V</code> lift establishes home and tension, then <code>vi→IV</code> falls gently without resolving — so the loop feels uplifting without ever closing. This is why it works in every pop ballad from Journey to Adele.`,
+    chords: [
+      { numeral: 'I',   name: 'C',    notes: ['C3','E3','G3','C4'],  bass: 'C2' },
+      { numeral: 'V',   name: 'G',    notes: ['G2','B2','D3','G3'],  bass: 'G1' },
+      { numeral: 'vi',  name: 'Am',   notes: ['A2','C3','E3','A3'],  bass: 'A1' },
+      { numeral: 'IV',  name: 'F',    notes: ['F2','A2','C3','F3'],  bass: 'F1' },
+    ],
+  },
+  'doo-wop': {
+    label: "50s Doo-Wop · I–vi–IV–V",
+    numerals: 'I–vi–IV–V',
+    why: `<strong style="color:var(--warm);">The "Stand By Me" progression.</strong> The <code>vi</code> appears <em>early</em> (second chord), giving immediate melancholy. <code>IV→V</code> then pushes back to the tonic with authority — creating the "longing followed by promise" arc that defined an entire era.`,
+    chords: [
+      { numeral: 'I',   name: 'C',    notes: ['C3','E3','G3','C4'],  bass: 'C2' },
+      { numeral: 'vi',  name: 'Am',   notes: ['A2','C3','E3','A3'],  bass: 'A1' },
+      { numeral: 'IV',  name: 'F',    notes: ['F2','A2','C3','F3'],  bass: 'F1' },
+      { numeral: 'V',   name: 'G',    notes: ['G2','B2','D3','G3'],  bass: 'G1' },
+    ],
+  },
+  'jazz': {
+    label: 'Jazz · ii⁷–V⁷–I△⁷–vi⁷',
+    numerals: 'ii⁷–V⁷–I△⁷–vi⁷',
+    why: `<strong style="color:var(--warm);">The jazz turnaround.</strong> Each root walks <em>down a fifth</em> (the strongest resolution in tonal music), then <code>vi⁷</code> sets up the next loop. The sevenths are non-negotiable — they're what make it sound like jazz instead of a children's song.`,
+    chords: [
+      { numeral: 'ii⁷',  name: 'Dm7',   notes: ['D3','F3','A3','C4'], bass: 'D2' },
+      { numeral: 'V⁷',   name: 'G7',    notes: ['G2','B2','D3','F3'], bass: 'G1' },
+      { numeral: 'I△⁷',  name: 'Cmaj7', notes: ['C3','E3','G3','B3'], bass: 'C2' },
+      { numeral: 'vi⁷',  name: 'Am7',   notes: ['A2','C3','E3','G3'], bass: 'A1' },
+    ],
+  },
+  'minor-epic': {
+    label: 'Minor Epic · i–VII–VI–VII',
+    numerals: 'i–VII–VI–VII',
+    why: `<strong style="color:var(--warm);">The film-trailer progression.</strong> In <code>C minor</code> now — note the key change. The <code>i→VII</code> drop creates unresolved drift, and the <code>VI</code> adds gravity without ever returning home. This is why it feels "epic" — it never satisfies, so it sustains mood forever.`,
+    chords: [
+      { numeral: 'i',    name: 'Cm',   notes: ['C3','Eb3','G3','C4'],  bass: 'C2' },
+      { numeral: 'VII',  name: 'Bb',   notes: ['Bb2','D3','F3','Bb3'], bass: 'Bb1' },
+      { numeral: 'VI',   name: 'Ab',   notes: ['Ab2','C3','Eb3','Ab3'], bass: 'Ab1' },
+      { numeral: 'VII',  name: 'Bb',   notes: ['Bb2','D3','F3','Bb3'], bass: 'Bb1' },
+    ],
+  },
+  'blues': {
+    label: 'Blues · I–IV–V (8-bar bones)',
+    numerals: 'I·I·I·I·IV·IV·V·V',
+    why: `<strong style="color:var(--warm);">The skeleton of the 12-bar blues</strong> (compressed to 8 here for the loop). Just three chords, but uneven bar lengths generate the unmistakable blues breathing. The simplicity is the point — everything else in blues is how you <em>ornament</em> these three chords.`,
+    chords: [
+      { numeral: 'I', name: 'C', notes: ['C3','E3','G3','C4'], bass: 'C2' },
+      { numeral: 'I', name: 'C', notes: ['C3','E3','G3','C4'], bass: 'C2' },
+      { numeral: 'I', name: 'C', notes: ['C3','E3','G3','C4'], bass: 'C2' },
+      { numeral: 'I', name: 'C', notes: ['C3','E3','G3','C4'], bass: 'C2' },
+      { numeral: 'IV', name: 'F', notes: ['F2','A2','C3','F3'], bass: 'F1' },
+      { numeral: 'IV', name: 'F', notes: ['F2','A2','C3','F3'], bass: 'F1' },
+      { numeral: 'V', name: 'G', notes: ['G2','B2','D3','G3'], bass: 'G1' },
+      { numeral: 'V', name: 'G', notes: ['G2','B2','D3','G3'], bass: 'G1' },
+    ],
+  },
+};
+const keys = Object.keys(progressions);
+let currentKey = 'pop';
+let queuedKey = null; // crossfade-on-next-downbeat target
+
+// ============================================================
+// RENDER the progression selector cards
+// ============================================================
+const selector = document.getElementById('selector');
+keys.forEach((k, i) => {
+  const p = progressions[k];
+  const card = document.createElement('div');
+  card.className = 'prog-card' + (k === currentKey ? ' active' : '');
+  card.dataset.key = k;
+  card.innerHTML = `
+    <div class="hotkey">[${i+1}]</div>
+    <div class="key">${p.label.split(' · ')[0]}</div>
+    <div class="numerals">${p.numerals}</div>`;
+  card.addEventListener('click', () => selectProgression(k));
+  selector.appendChild(card);
+});
+
+function renderChords() {
+  const p = progressions[currentKey];
+  const chordsEl = document.getElementById('chords');
+  chordsEl.className = 'chord-row' + (p.chords.length === 8 ? ' eight' : '');
+  chordsEl.innerHTML = '';
+  p.chords.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'chord';
+    div.id = 'chord-' + i;
+    div.innerHTML = `
+      <div class="numeral">${c.numeral}</div>
+      <div class="name">${c.name}</div>
+      <div class="notes">${c.notes.join(' · ')}</div>`;
+    chordsEl.appendChild(div);
+  });
+}
+
+function renderWhy() {
+  document.getElementById('why').innerHTML = progressions[currentKey].why;
+  document.getElementById('nowLabel').textContent = progressions[currentKey].label;
+}
+
+function updateSelectorActive() {
+  document.querySelectorAll('.prog-card').forEach(el => {
+    el.classList.toggle('active', el.dataset.key === currentKey);
+  });
+}
+
+function selectProgression(k) {
+  if (!(k in progressions)) return;
+  if (Tone && Tone.Transport.state === 'started') {
+    // Queue the swap for the next downbeat (crossfade-on-loop-start)
+    queuedKey = k;
+    document.querySelectorAll('.prog-card').forEach(el => {
+      el.style.outline = el.dataset.key === k ? '2px dashed var(--accent)' : '';
+    });
+  } else {
+    currentKey = k;
+    renderChords();
+    renderWhy();
+    updateSelectorActive();
+  }
+}
+
+renderChords();
+renderWhy();
+
+// ============================================================
+// TONE.JS SIGNAL CHAIN (mirrors lesson 1 — no vinyl crackle here)
+// ============================================================
+let started = false;
+let loop, drumLoop, lpFilter, reverb, rhodes, bass, kick, snare, hat;
+let masterGain, scopeAnalyser, scopeRAF;
+
+function buildChain() {
+  Tone.Transport.bpm.value = 80;
+  Tone.Transport.swing = 0.1;
+  Tone.Transport.swingSubdivision = '8n';
+
+  masterGain = new Tone.Gain(0.9).toDestination();
+  scopeAnalyser = new Tone.Analyser('waveform', 1024);
+  masterGain.connect(scopeAnalyser);
+
+  reverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 }).connect(masterGain);
+  lpFilter = new Tone.Filter({ frequency: 2800, type: 'lowpass', rolloff: -24 }).connect(reverb);
+
+  rhodes = new Tone.PolySynth(Tone.FMSynth, {
+    harmonicity: 3.2, modulationIndex: 8,
+    envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.2 },
+    modulationEnvelope: { attack: 0.02, decay: 0.5, sustain: 0.2, release: 0.5 },
+    volume: -14
+  }).connect(lpFilter);
+
+  bass = new Tone.MonoSynth({
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.02, decay: 0.2, sustain: 0.6, release: 0.4 },
+    filter: { Q: 1, type: 'lowpass', rolloff: -12 },
+    filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.3, baseFrequency: 300, octaves: 2 },
+    volume: -10
+  }).connect(lpFilter);
+
+  kick  = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, envelope: { attack: 0.001, decay: 0.4, sustain: 0 }, volume: -8 }).connect(lpFilter);
+  snare = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 }, volume: -20 }).connect(lpFilter);
+  hat   = new Tone.MetalSynth({ frequency: 200, envelope: { attack: 0.001, decay: 0.05, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -32 }).connect(lpFilter);
+
+  // ============================================================
+  // THE LOOP — one chord per bar. At the top of each loop, honor
+  // any queued progression swap so switches land on a downbeat.
+  // ============================================================
+  let bar = 0;
+  loop = new Tone.Loop((time) => {
+    const p = progressions[currentKey];
+    const idx = bar % p.chords.length;
+
+    if (idx === 0 && queuedKey && queuedKey !== currentKey) {
+      currentKey = queuedKey;
+      queuedKey = null;
+      bar = 0;
+      Tone.Draw.schedule(() => {
+        renderChords();
+        renderWhy();
+        updateSelectorActive();
+        document.querySelectorAll('.prog-card').forEach(el => el.style.outline = '');
+      }, time);
+      const np = progressions[currentKey];
+      playBar(np.chords[0], time);
+      Tone.Draw.schedule(() => highlight(0), time);
+      bar++;
+      return;
+    }
+
+    playBar(p.chords[idx], time);
+    Tone.Draw.schedule(() => highlight(idx), time);
+    bar++;
+  }, '1m').start(0);
+
+  drumLoop = new Tone.Loop((time) => {
+    kick.triggerAttackRelease('C1', '8n', time);
+    kick.triggerAttackRelease('C1', '8n', time + Tone.Time('2n').toSeconds() + Tone.Time('8n').toSeconds());
+    snare.triggerAttackRelease('8n', time + Tone.Time('4n').toSeconds());
+    snare.triggerAttackRelease('8n', time + Tone.Time('2n').toSeconds() + Tone.Time('4n').toSeconds());
+    for (let i = 0; i < 8; i++) {
+      if (i % 2 === 1) hat.triggerAttackRelease('32n', time + i * Tone.Time('8n').toSeconds(), 0.3);
+    }
+  }, '1m').start(0);
+}
+
+function playBar(chord, time) {
+  rhodes.triggerAttackRelease(chord.notes, '2n', time, 0.55);
+  rhodes.triggerAttackRelease(chord.notes, '2n', time + Tone.Time('2n').toSeconds(), 0.45);
+  bass.triggerAttackRelease(chord.bass, '4n', time, 0.7);
+  bass.triggerAttackRelease(chord.bass, '4n', time + Tone.Time('2n').toSeconds(), 0.6);
+}
+
+function highlight(idx) {
+  document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('chord-' + idx);
+  if (el) el.classList.add('active');
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+document.getElementById('play').addEventListener('click', async () => {
+  if (!started) { await Tone.start(); buildChain(); startScope(); started = true; }
+  Tone.Transport.start();
+});
+document.getElementById('stop').addEventListener('click', stopAll);
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (masterGain) masterGain.gain.rampTo(v, 0.05);
+});
+
+function stopAll() {
+  Tone.Transport.stop();
+  if (rhodes) rhodes.releaseAll();
+  if (bass) bass.triggerRelease();
+  document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (typeof Tone !== 'undefined' && Tone.Transport.state === 'started') stopAll();
+    else document.getElementById('play').click();
+  } else if (/^Digit[1-5]$/.test(e.code)) {
+    const i = parseInt(e.code.slice(5), 10) - 1;
+    if (keys[i]) selectProgression(keys[i]);
+  }
+});
+
+// ============================================================
+// OSCILLOSCOPE — CRT-style phosphor fade (matches lesson 1)
+// ============================================================
+function startScope() {
+  const canvas = document.getElementById('scope');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  function draw() {
+    scopeRAF = requestAnimationFrame(draw);
+    const data = scopeAnalyser.getValue();
+    ctx.fillStyle = 'rgba(20, 17, 26, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(58, 50, 68, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+    ctx.strokeStyle = '#d4a373';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(212, 163, 115, 0.7)';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const step = W / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const x = i * step;
+      const y = H/2 + data[i] * (H/2) * 0.9;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  draw();
+}
+
+// ============================================================
+// MODULE PROGRESS — localStorage
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-chord-progressions';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const progress = loadProgress();
+const completeBtn = document.getElementById('markComplete');
+const banner = document.getElementById('completeBanner');
+
+if (progress.lesson2 === 'complete') {
+  completeBtn.textContent = 'Lesson 2 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+}
+
+completeBtn.addEventListener('click', () => {
+  if (progress.lesson2 === 'complete') return;
+  progress.lesson2 = 'complete';
+  progress.lesson2CompletedAt = new Date().toISOString();
+  saveProgress(progress);
+  completeBtn.textContent = 'Lesson 2 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+</script>
+</body>
+</html>

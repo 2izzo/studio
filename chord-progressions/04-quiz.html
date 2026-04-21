@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Lesson 4: Snap Quiz</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --red: #d47a7a;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.5;
+    max-width: 1200px; margin: 0 auto;
+  }
+  nav a:hover { color: var(--accent) !important; }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button { font-family: inherit; font-size: 13px; padding: 10px 20px; border: 1px solid var(--grid);
+           background: var(--panel); color: var(--ink); border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button:disabled:hover { border-color: var(--grid); color: var(--ink); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  /* Scoreboard */
+  .scoreboard { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .scoreboard .score-big { font-size: 16px; color: var(--warm); font-weight: 600; }
+  .scoreboard .streak { color: var(--accent); }
+  .family-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .fam-badge { background: #1f1a28; border: 1px solid var(--grid); border-radius: 3px; padding: 3px 7px; font-size: 10px; }
+  .fam-badge .fam-name { color: var(--muted); }
+  .fam-badge .fam-right { color: var(--green); }
+  .fam-badge .fam-wrong { color: var(--red); }
+
+  /* Question block */
+  .q-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+  .q-head .q-num { color: var(--warm); font-size: 14px; font-weight: 600; }
+  .q-head .bpm { color: var(--muted); font-size: 11px; }
+
+  .chord-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
+  .chord-row.eight { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, auto); }
+  @media (max-width: 600px) { .chord-row, .chord-row.eight { grid-template-columns: repeat(2, 1fr); } }
+  .chord {
+    padding: 14px; border: 1px solid var(--grid); border-radius: 4px;
+    background: #1f1a28; transition: all 0.15s; min-height: 82px;
+  }
+  .chord.active { border-color: var(--warm); background: #302438; box-shadow: 0 0 20px rgba(212,163,115,0.2); }
+  .chord .numeral { font-size: 20px; color: var(--warm); }
+  .chord .name { font-size: 13px; color: var(--ink); margin: 4px 0; min-height: 18px; }
+  .chord .notes { font-size: 11px; color: var(--muted); }
+  .chord .hidden-name { color: transparent; }
+
+  /* Answer buttons */
+  .answers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 16px; }
+  @media (max-width: 760px) { .answers { grid-template-columns: repeat(2, 1fr); } }
+  .ans {
+    padding: 12px 10px; border: 1px solid var(--grid); border-radius: 4px;
+    background: #1f1a28; color: var(--ink); cursor: pointer; transition: all 0.15s;
+    font-family: inherit; font-size: 12px; text-align: center;
+  }
+  .ans:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .ans .hk { display: block; font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+  .ans.correct { border-color: var(--green); background: #25342b; color: var(--green); }
+  .ans.wrong { border-color: var(--red); background: #3a2328; color: var(--red); }
+  .ans.reveal-correct { border-color: var(--green); color: var(--green); }
+
+  /* Feedback panel */
+  .feedback { padding: 16px; border-radius: 4px; margin-top: 16px; font-size: 13px; }
+  .feedback.right { border: 1px solid var(--green); background: #22301f; }
+  .feedback.wrong { border: 1px solid var(--accent); background: #3a1f2d; }
+  .feedback .verdict { font-weight: 600; margin-bottom: 6px; }
+  .feedback.right .verdict { color: var(--green); }
+  .feedback.wrong .verdict { color: var(--accent); }
+  .feedback .explain { color: var(--ink); }
+  .feedback .explain code { background: #14111a; padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+  .feedback .next-row { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .feedback .countdown { color: var(--muted); font-size: 11px; }
+
+  /* End screen */
+  .end-score { font-size: 48px; color: var(--warm); text-align: center; margin: 10px 0; }
+  .end-pass { font-size: 16px; text-align: center; margin: 0 0 20px; }
+  .end-pass.pass { color: var(--green); }
+  .end-pass.fail { color: var(--accent); }
+  .end-breakdown { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 16px 0; }
+  @media (max-width: 760px) { .end-breakdown { grid-template-columns: repeat(2, 1fr); } }
+  .end-fam { padding: 10px; background: #1f1a28; border: 1px solid var(--grid); border-radius: 4px; text-align: center; font-size: 11px; }
+  .end-fam .name { color: var(--muted); margin-bottom: 6px; }
+  .end-fam .ratio { color: var(--warm); font-size: 14px; }
+  .end-actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<nav style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding:10px 14px; background:#241e2d; border:1px solid #3a3244; border-radius:6px; font-size:12px; color:#8a7f92;">
+  <a href="03-transformation.html" style="color:#d4a373; text-decoration:none;">← Lesson 3: The Transformation</a>
+  <span>Lesson 4 of 4 — Snap Quiz</span>
+  <a href="index.html" style="color:#d4a373; text-decoration:none;">Back to module →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, #302438, #241e2d); border:1px solid #d4a373; border-radius:6px; padding:14px 18px; margin-bottom:20px; color:#d4a373; font-size:13px;">
+  ✓ Module complete — <span id="bestScoreInline"></span>. <a href="index.html" style="color:#c17a9c;">Back to module →</a>
+</div>
+
+<h1>~ Snap Quiz ~</h1>
+<p class="sub">10 mystery progressions. Name the family. 7/10 to pass.</p>
+
+<div class="panel" style="padding: 12px;">
+  <canvas id="scope" width="1200" height="140" style="width:100%; height:140px; display:block; background:#14111a; border-radius:4px;"></canvas>
+</div>
+
+<div class="panel" id="scoreboardPanel">
+  <div class="scoreboard">
+    <span class="score-big" id="scoreBig">0 of 0 correct</span>
+    <span class="streak" id="streakEl"></span>
+    <div class="family-badges" id="famBadges"></div>
+  </div>
+</div>
+
+<div id="quizRoot">
+  <div class="panel" id="questionPanel">
+    <div class="q-head">
+      <span class="q-num" id="qNum">Question 1 of 10</span>
+      <button id="playBtn" class="primary">▶ play</button>
+      <button id="replayBtn" disabled>↻ replay</button>
+      <span class="bpm" id="bpmEl">— BPM</span>
+      <span class="bpm" id="keyEl" style="color:var(--warm);">key: —</span>
+      <span style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-left: auto;">
+        vol <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" style="width: 64px; accent-color: #d4a373;">
+        <span id="volVal" style="width: 28px; text-align: right;">80%</span>
+      </span>
+    </div>
+    <div class="chord-row" id="chords"></div>
+    <div class="answers" id="answers"></div>
+    <div id="feedback"></div>
+    <div style="color: var(--muted); font-size: 11px; margin-top: 14px;">
+      Hotkeys: <span style="color:var(--warm);">Space</span> play/replay · <span style="color:var(--warm);">1–5</span> answer
+    </div>
+  </div>
+
+  <div class="panel" id="endPanel" style="display:none;">
+    <h2>Quiz Complete</h2>
+    <div class="end-score" id="endScore">0 / 10</div>
+    <div class="end-pass" id="endPass"></div>
+    <div class="end-breakdown" id="endBreakdown"></div>
+    <div class="end-actions">
+      <button id="retakeBtn" class="primary">↻ Retake</button>
+      <a href="index.html" style="text-decoration:none;"><button>← Module</button></a>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// BASE PROGRESSIONS — copied verbatim from lesson 2
+// ============================================================
+const BASE_PROGRESSIONS = {
+  'pop': {
+    label: 'Pop',
+    full: 'Pop · I–V–vi–IV',
+    why: `<strong style="color:var(--warm);">The "Axis of Awesome" progression.</strong> The <code>I→V</code> lift establishes home and tension, then <code>vi→IV</code> falls gently without resolving.`,
+    chords: [
+      { numeral: 'I',   name: 'C',    notes: ['C3','E3','G3','C4'],  bass: 'C2' },
+      { numeral: 'V',   name: 'G',    notes: ['G2','B2','D3','G3'],  bass: 'G1' },
+      { numeral: 'vi',  name: 'Am',   notes: ['A2','C3','E3','A3'],  bass: 'A1' },
+      { numeral: 'IV',  name: 'F',    notes: ['F2','A2','C3','F3'],  bass: 'F1' },
+    ],
+  },
+  'doo-wop': {
+    label: 'Doo-Wop',
+    full: '50s Doo-Wop · I–vi–IV–V',
+    why: `<strong style="color:var(--warm);">The "Stand By Me" progression.</strong> The <code>vi</code> appears <em>early</em>, giving immediate melancholy. <code>IV→V</code> pushes back with authority.`,
+    chords: [
+      { numeral: 'I',   name: 'C',    notes: ['C3','E3','G3','C4'],  bass: 'C2' },
+      { numeral: 'vi',  name: 'Am',   notes: ['A2','C3','E3','A3'],  bass: 'A1' },
+      { numeral: 'IV',  name: 'F',    notes: ['F2','A2','C3','F3'],  bass: 'F1' },
+      { numeral: 'V',   name: 'G',    notes: ['G2','B2','D3','G3'],  bass: 'G1' },
+    ],
+  },
+  'jazz': {
+    label: 'Jazz',
+    full: 'Jazz · ii⁷–V⁷–I△⁷–vi⁷',
+    why: `<strong style="color:var(--warm);">The jazz turnaround.</strong> Each root walks <em>down a fifth</em>, then <code>vi⁷</code> sets up the next loop. The sevenths are the signature.`,
+    chords: [
+      { numeral: 'ii⁷',  name: 'Dm7',   notes: ['D3','F3','A3','C4'], bass: 'D2' },
+      { numeral: 'V⁷',   name: 'G7',    notes: ['G2','B2','D3','F3'], bass: 'G1' },
+      { numeral: 'I△⁷',  name: 'Cmaj7', notes: ['C3','E3','G3','B3'], bass: 'C2' },
+      { numeral: 'vi⁷',  name: 'Am7',   notes: ['A2','C3','E3','G3'], bass: 'A1' },
+    ],
+  },
+  'minor-epic': {
+    label: 'Minor Epic',
+    full: 'Minor Epic · i–VII–VI–VII',
+    why: `<strong style="color:var(--warm);">The film-trailer progression.</strong> <code>i→VII</code> drops into unresolved drift; <code>VI</code> adds gravity without returning home. It sustains mood forever.`,
+    chords: [
+      { numeral: 'i',    name: 'Cm',   notes: ['C3','Eb3','G3','C4'],  bass: 'C2' },
+      { numeral: 'VII',  name: 'Bb',   notes: ['Bb2','D3','F3','Bb3'], bass: 'Bb1' },
+      { numeral: 'VI',   name: 'Ab',   notes: ['Ab2','C3','Eb3','Ab3'], bass: 'Ab1' },
+      { numeral: 'VII',  name: 'Bb',   notes: ['Bb2','D3','F3','Bb3'], bass: 'Bb1' },
+    ],
+  },
+  'blues': {
+    label: 'Blues',
+    full: 'Blues · I–IV–V (8-bar bones)',
+    why: `<strong style="color:var(--warm);">The skeleton of the 12-bar blues</strong> (compressed to 8 for the loop). Three chords with uneven bar lengths generate blues breathing.`,
+    chords: [
+      { numeral: 'I', name: 'C', notes: ['C3','E3','G3','C4'], bass: 'C2' },
+      { numeral: 'I', name: 'C', notes: ['C3','E3','G3','C4'], bass: 'C2' },
+      { numeral: 'I', name: 'C', notes: ['C3','E3','G3','C4'], bass: 'C2' },
+      { numeral: 'I', name: 'C', notes: ['C3','E3','G3','C4'], bass: 'C2' },
+      { numeral: 'IV', name: 'F', notes: ['F2','A2','C3','F3'], bass: 'F1' },
+      { numeral: 'IV', name: 'F', notes: ['F2','A2','C3','F3'], bass: 'F1' },
+      { numeral: 'V', name: 'G', notes: ['G2','B2','D3','G3'], bass: 'G1' },
+      { numeral: 'V', name: 'G', notes: ['G2','B2','D3','G3'], bass: 'G1' },
+    ],
+  },
+};
+
+const FAMILIES = ['pop', 'doo-wop', 'jazz', 'minor-epic', 'blues'];
+const MAJOR_KEYS = ['C', 'G', 'D', 'F', 'A'];
+const KEY_DISPLAY = { 'pop': 'major', 'doo-wop': 'major', 'jazz': 'major', 'minor-epic': 'minor', 'blues': 'major' };
+
+// ============================================================
+// TRANSPOSITION HELPERS
+// ============================================================
+const NOTE_INDEX = { 'C':0, 'C#':1, 'Db':1, 'D':2, 'D#':3, 'Eb':3, 'E':4, 'F':5, 'F#':6, 'Gb':6, 'G':7, 'G#':8, 'Ab':8, 'A':9, 'A#':10, 'Bb':10, 'B':11 };
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+function transpose(note, semitones) {
+  const m = note.match(/^([A-G][b#]?)(-?\d+)$/);
+  if (!m) return note;
+  const pc = NOTE_INDEX[m[1]];
+  const oct = parseInt(m[2], 10);
+  const total = pc + semitones;
+  const newPc = ((total % 12) + 12) % 12;
+  const newOct = oct + Math.floor((pc + semitones) / 12);
+  return NOTE_NAMES[newPc] + newOct;
+}
+
+function transposeFamilyToKey(family, keyRoot) {
+  const baseChords = BASE_PROGRESSIONS[family].chords;
+  const semitones = NOTE_INDEX[keyRoot] - NOTE_INDEX['C'];
+  return baseChords.map(c => ({
+    numeral: c.numeral,
+    origName: c.name,
+    name: transposeChordName(c.name, semitones),
+    notes: c.notes.map(n => transpose(n, semitones)),
+    bass: transpose(c.bass, semitones),
+  }));
+}
+
+// Transpose a chord name like "Cmaj7" or "Am" or "Bb" → shifted version.
+function transposeChordName(name, semitones) {
+  const m = name.match(/^([A-G][b#]?)(.*)$/);
+  if (!m) return name;
+  const pc = NOTE_INDEX[m[1]];
+  const newPc = ((pc + semitones) % 12 + 12) % 12;
+  return NOTE_NAMES[newPc] + m[2];
+}
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function buildQuestion() {
+  const family = pick(FAMILIES);
+  const keyRoot = pick(MAJOR_KEYS);
+  return {
+    family,
+    keyRoot,
+    chords: transposeFamilyToKey(family, keyRoot),
+    bpm: 78 + Math.floor(Math.random() * 6), // 78-83
+  };
+}
+
+function buildQuestionQueue() {
+  const qs = [];
+  for (let i = 0; i < 10; i++) qs.push(buildQuestion());
+  return qs;
+}
+
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  questions: [],
+  current: 0,
+  correct: 0,
+  streak: 0,
+  perFamily: { 'pop':{right:0,wrong:0}, 'doo-wop':{right:0,wrong:0}, 'jazz':{right:0,wrong:0}, 'minor-epic':{right:0,wrong:0}, 'blues':{right:0,wrong:0} },
+  locked: false,
+  autoplayOk: false, // becomes true after first user-gesture play
+  audioBuilt: false,
+};
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderScoreboard() {
+  document.getElementById('scoreBig').textContent =
+    `${state.correct} of ${state.current} correct`;
+  const streakEl = document.getElementById('streakEl');
+  streakEl.textContent = state.streak >= 2 ? `🔥 ${state.streak} streak` : '';
+  const badges = document.getElementById('famBadges');
+  badges.innerHTML = '';
+  FAMILIES.forEach(f => {
+    const pf = state.perFamily[f];
+    const el = document.createElement('div');
+    el.className = 'fam-badge';
+    el.innerHTML = `<span class="fam-name">${BASE_PROGRESSIONS[f].label}</span> <span class="fam-right">${pf.right}</span>/<span class="fam-wrong">${pf.wrong}</span>`;
+    badges.appendChild(el);
+  });
+}
+
+function renderChords(revealNames) {
+  const q = state.questions[state.current];
+  const chordsEl = document.getElementById('chords');
+  chordsEl.className = 'chord-row' + (q.chords.length === 8 ? ' eight' : '');
+  chordsEl.innerHTML = '';
+  q.chords.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'chord';
+    div.id = 'chord-' + i;
+    div.innerHTML = `
+      <div class="numeral">${c.numeral}</div>
+      <div class="name${revealNames ? '' : ' hidden-name'}">${revealNames ? c.name : '·'}</div>
+      <div class="notes">${revealNames ? c.notes.join(' · ') : ''}</div>`;
+    chordsEl.appendChild(div);
+  });
+}
+
+function renderAnswers() {
+  const answers = document.getElementById('answers');
+  answers.innerHTML = '';
+  FAMILIES.forEach((f, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'ans';
+    btn.dataset.family = f;
+    btn.innerHTML = `<span class="hk">[${i+1}]</span>${BASE_PROGRESSIONS[f].label}`;
+    btn.addEventListener('click', () => answer(f));
+    answers.appendChild(btn);
+  });
+}
+
+function renderQuestion() {
+  const q = state.questions[state.current];
+  document.getElementById('qNum').textContent = `Question ${state.current+1} of 10`;
+  document.getElementById('bpmEl').textContent = `${q.bpm} BPM`;
+  const keyTag = q.keyRoot + (KEY_DISPLAY[q.family] === 'minor' ? ' minor' : ' major');
+  // Show only the root letter during the question (leaks key but not major/minor
+  // — since family determines that). Reveals full "G major" etc. on answer.
+  document.getElementById('keyEl').textContent = `key: ${q.keyRoot}`;
+  document.getElementById('keyEl').dataset.full = keyTag;
+  document.getElementById('feedback').innerHTML = '';
+  renderChords(false);
+  renderAnswers();
+  document.querySelectorAll('.ans').forEach(a => { a.disabled = false; a.classList.remove('correct','wrong','reveal-correct'); });
+  document.getElementById('replayBtn').disabled = true;
+  renderScoreboard();
+}
+
+function highlight(idx) {
+  document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('chord-' + idx);
+  if (el) el.classList.add('active');
+}
+
+// ============================================================
+// TONE.JS SIGNAL CHAIN
+// ============================================================
+let rhodes, bass, kick, snare, hat;
+let lpFilter, reverb, masterGain, scopeAnalyser;
+let activeLoop = null, activeDrumLoop = null;
+let scopeRAF = null;
+
+function buildChain() {
+  masterGain = new Tone.Gain(0.9).toDestination();
+  scopeAnalyser = new Tone.Analyser('waveform', 1024);
+  masterGain.connect(scopeAnalyser);
+
+  reverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 }).connect(masterGain);
+  lpFilter = new Tone.Filter({ frequency: 2800, type: 'lowpass', rolloff: -24 }).connect(reverb);
+
+  rhodes = new Tone.PolySynth(Tone.FMSynth, {
+    harmonicity: 3.2, modulationIndex: 8,
+    envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.2 },
+    modulationEnvelope: { attack: 0.02, decay: 0.5, sustain: 0.2, release: 0.5 },
+    volume: -14
+  }).connect(lpFilter);
+
+  bass = new Tone.MonoSynth({
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.02, decay: 0.2, sustain: 0.6, release: 0.4 },
+    filter: { Q: 1, type: 'lowpass', rolloff: -12 },
+    filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.3, baseFrequency: 300, octaves: 2 },
+    volume: -10
+  }).connect(lpFilter);
+
+  kick  = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, envelope: { attack: 0.001, decay: 0.4, sustain: 0 }, volume: -8 }).connect(lpFilter);
+  snare = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 }, volume: -20 }).connect(lpFilter);
+  hat   = new Tone.MetalSynth({ frequency: 200, envelope: { attack: 0.001, decay: 0.05, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -32 }).connect(lpFilter);
+
+  state.audioBuilt = true;
+}
+
+function playBar(chord, time) {
+  rhodes.triggerAttackRelease(chord.notes, '2n', time, 0.55);
+  rhodes.triggerAttackRelease(chord.notes, '2n', time + Tone.Time('2n').toSeconds(), 0.45);
+  bass.triggerAttackRelease(chord.bass, '4n', time, 0.7);
+  bass.triggerAttackRelease(chord.bass, '4n', time + Tone.Time('2n').toSeconds(), 0.6);
+}
+
+function stopAllAudio() {
+  Tone.Transport.stop();
+  Tone.Transport.cancel();
+  if (activeLoop) { activeLoop.stop(); activeLoop.dispose(); activeLoop = null; }
+  if (activeDrumLoop) { activeDrumLoop.stop(); activeDrumLoop.dispose(); activeDrumLoop = null; }
+  if (rhodes) rhodes.releaseAll();
+  if (bass) bass.triggerRelease();
+  document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+}
+
+// Play a question — 2 full loops of the progression, then silence.
+function playQuestion() {
+  if (!state.audioBuilt) return;
+  stopAllAudio();
+  const q = state.questions[state.current];
+  Tone.Transport.bpm.value = q.bpm;
+  Tone.Transport.swing = 0.1;
+  Tone.Transport.swingSubdivision = '8n';
+
+  const chords = q.chords;
+  const totalBars = chords.length * 2; // 2 loops
+  let bar = 0;
+
+  activeLoop = new Tone.Loop((time) => {
+    if (bar >= totalBars) {
+      // done — schedule a stop just after this bar ends
+      Tone.Draw.schedule(() => {
+        document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+      }, time + Tone.Time('1m').toSeconds());
+      Tone.Transport.scheduleOnce((t) => {
+        if (activeLoop) { activeLoop.stop(t); }
+        if (activeDrumLoop) { activeDrumLoop.stop(t); }
+      }, time + Tone.Time('1m').toSeconds());
+      return;
+    }
+    const idx = bar % chords.length;
+    playBar(chords[idx], time);
+    Tone.Draw.schedule(() => highlight(idx), time);
+    bar++;
+  }, '1m').start(0);
+
+  activeDrumLoop = new Tone.Loop((time) => {
+    if (bar > totalBars) return;
+    kick.triggerAttackRelease('C1', '8n', time);
+    kick.triggerAttackRelease('C1', '8n', time + Tone.Time('2n').toSeconds() + Tone.Time('8n').toSeconds());
+    snare.triggerAttackRelease('8n', time + Tone.Time('4n').toSeconds());
+    snare.triggerAttackRelease('8n', time + Tone.Time('2n').toSeconds() + Tone.Time('4n').toSeconds());
+    for (let i = 0; i < 8; i++) {
+      if (i % 2 === 1) hat.triggerAttackRelease('32n', time + i * Tone.Time('8n').toSeconds(), 0.3);
+    }
+  }, '1m').start(0);
+
+  Tone.Transport.start('+0.05');
+  document.getElementById('replayBtn').disabled = false;
+}
+
+// ============================================================
+// QUIZ FLOW
+// ============================================================
+function answer(familyPicked) {
+  if (state.locked) return;
+  state.locked = true;
+  const q = state.questions[state.current];
+  const right = familyPicked === q.family;
+
+  if (right) { state.correct++; state.streak++; }
+  else { state.streak = 0; }
+  state.perFamily[q.family][right ? 'right' : 'wrong']++;
+
+  // Visual: mark the chosen and the correct
+  document.querySelectorAll('.ans').forEach(a => {
+    a.disabled = true;
+    if (a.dataset.family === familyPicked) a.classList.add(right ? 'correct' : 'wrong');
+    if (a.dataset.family === q.family && !right) a.classList.add('reveal-correct');
+  });
+
+  // Reveal chord names
+  renderChords(true);
+
+  // Feedback panel
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback ' + (right ? 'right' : 'wrong');
+  const famInfo = BASE_PROGRESSIONS[q.family];
+  const keyTag = q.keyRoot + (KEY_DISPLAY[q.family] === 'minor' ? ' minor' : ' major');
+  fb.innerHTML = `
+    <div class="verdict">${right ? '✓ Correct — ' + famInfo.full : '✗ Not quite — answer was ' + famInfo.full}</div>
+    <div class="explain">Key: <code>${keyTag}</code> · ${famInfo.why}</div>
+    <div class="next-row">
+      <span class="countdown" id="countdown">Advancing in 2.5s…</span>
+      <button id="nextNow">Next →</button>
+    </div>
+  `;
+  document.getElementById('nextNow').addEventListener('click', nextQuestion);
+
+  renderScoreboard();
+
+  // Auto-advance
+  state._nextTimer = setTimeout(nextQuestion, 2500);
+}
+
+function nextQuestion() {
+  if (state._nextTimer) { clearTimeout(state._nextTimer); state._nextTimer = null; }
+  stopAllAudio();
+  state.current++;
+  state.locked = false;
+
+  if (state.current >= state.questions.length) {
+    showEndScreen();
+    return;
+  }
+  renderQuestion();
+  if (state.autoplayOk) {
+    setTimeout(() => playQuestion(), 300);
+  }
+}
+
+function showEndScreen() {
+  document.getElementById('questionPanel').style.display = 'none';
+  const end = document.getElementById('endPanel');
+  end.style.display = 'block';
+  document.getElementById('endScore').textContent = `${state.correct} / 10`;
+  const passed = state.correct >= 7;
+  const passEl = document.getElementById('endPass');
+  passEl.textContent = passed ? '✓ PASSED — Module complete' : 'Not quite (need 7/10). Try again?';
+  passEl.className = 'end-pass ' + (passed ? 'pass' : 'fail');
+
+  const bd = document.getElementById('endBreakdown');
+  bd.innerHTML = '';
+  FAMILIES.forEach(f => {
+    const pf = state.perFamily[f];
+    const total = pf.right + pf.wrong;
+    const el = document.createElement('div');
+    el.className = 'end-fam';
+    el.innerHTML = `<div class="name">${BASE_PROGRESSIONS[f].label}</div><div class="ratio">${pf.right}/${total || 0}</div>`;
+    bd.appendChild(el);
+  });
+
+  persistResult(passed);
+  renderScoreboard();
+}
+
+function resetQuiz() {
+  stopAllAudio();
+  state.questions = buildQuestionQueue();
+  state.current = 0;
+  state.correct = 0;
+  state.streak = 0;
+  state.perFamily = { 'pop':{right:0,wrong:0}, 'doo-wop':{right:0,wrong:0}, 'jazz':{right:0,wrong:0}, 'minor-epic':{right:0,wrong:0}, 'blues':{right:0,wrong:0} };
+  state.locked = false;
+  document.getElementById('endPanel').style.display = 'none';
+  document.getElementById('questionPanel').style.display = 'block';
+  renderQuestion();
+  if (state.autoplayOk) setTimeout(() => playQuestion(), 200);
+}
+
+// ============================================================
+// PERSISTENCE
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-chord-progressions';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+function persistResult(passed) {
+  const progress = loadProgress();
+  progress.lesson4BestScore = Math.max(progress.lesson4BestScore || 0, state.correct);
+  progress.lesson4LastScore = state.correct;
+  progress.lesson4LastAt = new Date().toISOString();
+  if (passed) {
+    progress.lesson4 = 'complete';
+    progress.lesson4CompletedAt = progress.lesson4CompletedAt || new Date().toISOString();
+    progress.moduleComplete = true;
+    progress.moduleCompletedAt = progress.moduleCompletedAt || new Date().toISOString();
+  }
+  saveProgress(progress);
+  renderBanner();
+}
+
+function renderBanner() {
+  const progress = loadProgress();
+  const banner = document.getElementById('completeBanner');
+  if (progress.moduleComplete) {
+    banner.style.display = 'block';
+    document.getElementById('bestScoreInline').textContent =
+      `best score ${progress.lesson4BestScore || state.correct}/10`;
+  }
+}
+
+// ============================================================
+// OSCILLOSCOPE
+// ============================================================
+function startScope() {
+  const canvas = document.getElementById('scope');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  function draw() {
+    scopeRAF = requestAnimationFrame(draw);
+    if (!scopeAnalyser) return;
+    const data = scopeAnalyser.getValue();
+    ctx.fillStyle = 'rgba(20, 17, 26, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(58, 50, 68, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+    ctx.strokeStyle = '#d4a373';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(212, 163, 115, 0.7)';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const step = W / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const x = i * step;
+      const y = H/2 + data[i] * (H/2) * 0.9;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  draw();
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (masterGain) masterGain.gain.rampTo(v, 0.05);
+});
+
+document.getElementById('playBtn').addEventListener('click', async () => {
+  if (!state.audioBuilt) {
+    await Tone.start();
+    buildChain();
+    startScope();
+    state.autoplayOk = true;
+  }
+  playQuestion();
+});
+
+document.getElementById('replayBtn').addEventListener('click', () => {
+  if (state.audioBuilt) playQuestion();
+});
+
+document.getElementById('retakeBtn').addEventListener('click', resetQuiz);
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (document.getElementById('endPanel').style.display !== 'none') {
+    if (e.code === 'Space') { e.preventDefault(); resetQuiz(); }
+    return;
+  }
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!state.audioBuilt) document.getElementById('playBtn').click();
+    else playQuestion();
+  } else if (/^Digit[1-5]$/.test(e.code)) {
+    if (state.locked) return;
+    const i = parseInt(e.code.slice(5), 10) - 1;
+    if (FAMILIES[i]) answer(FAMILIES[i]);
+  } else if (e.code === 'Enter' && state.locked) {
+    nextQuestion();
+  }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+state.questions = buildQuestionQueue();
+renderQuestion();
+renderBanner();
+</script>
+</body>
+</html>

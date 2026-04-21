@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Snap Quiz: Name That Mode</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+    --red: #c75d5d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.5;
+    max-width: 1200px; margin: 0 auto;
+  }
+  nav a:hover { color: #c17a9c !important; }
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button { font-family: inherit; font-size: 13px; padding: 10px 20px; border: 1px solid var(--grid);
+           background: var(--panel); color: var(--ink); border-radius: 4px; cursor: pointer; }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  .complete-btn { background: transparent; border: 1px solid #8fb99c; color: #8fb99c; padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: #8fb99c; color: #1a1620; }
+  .complete-btn.done { background: #8fb99c; color: #1a1620; border-color: #8fb99c; cursor: default; }
+
+  /* MODE PICKER (start screen) */
+  .mode-picker {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    max-width: 720px; margin: 0 auto 4px;
+  }
+  @media (max-width: 720px) { .mode-picker { grid-template-columns: 1fr; } }
+  .mode-option {
+    padding: 16px; border: 2px solid var(--grid); border-radius: 6px;
+    background: #1f1a28; cursor: pointer; text-align: left; transition: all 0.15s;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .mode-option:hover { border-color: var(--accent); }
+  .mode-option input { display: none; }
+  .mode-option.selected { border-color: var(--warm); background: #302438; box-shadow: 0 0 16px rgba(212,163,115,0.15); }
+  .mode-option-title { color: var(--warm); font-size: 15px; }
+  .mode-option-sub { color: var(--muted); font-size: 11px; line-height: 1.45; }
+
+  /* QUIZ LAYOUT */
+  .quiz-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+  .quiz-header .q-num { font-size: 14px; color: var(--warm); }
+  .quiz-header .score { font-size: 14px; color: var(--muted); }
+  .quiz-header .score strong { color: var(--green); }
+
+  .key-label { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+
+  .question-badge {
+    display: inline-block; padding: 3px 10px; font-size: 10px;
+    border-radius: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .question-badge.theory { background: rgba(193,122,156,0.15); color: var(--accent); border: 1px solid var(--accent); }
+  .question-badge.ear { background: rgba(143,185,156,0.12); color: var(--green); border: 1px solid var(--green); }
+
+  .theory-prompt {
+    font-size: 17px; color: var(--ink); text-align: center;
+    padding: 24px 20px; background: #1f1a28; border: 1px solid var(--grid);
+    border-radius: 6px; margin: 14px 0 18px; line-height: 1.55;
+  }
+  .theory-prompt strong { color: var(--warm); font-weight: 600; }
+  .theory-prompt code { color: var(--accent); background: #14111a; padding: 2px 8px; border-radius: 3px; font-size: 15px; }
+  .theory-prompt .sub-prompt { font-size: 12px; color: var(--muted); margin-top: 10px; font-weight: normal; line-height: 1.5; }
+
+  /* ANSWER OPTIONS */
+  .answers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 20px 0; }
+  @media (max-width: 600px) { .answers { grid-template-columns: 1fr; } }
+  .answer-btn {
+    padding: 16px; border: 2px solid var(--grid); border-radius: 6px;
+    background: #1f1a28; cursor: pointer; transition: all 0.2s;
+    text-align: left;
+  }
+  .answer-btn:hover:not(.disabled) { border-color: var(--warm); }
+  .answer-btn .mode-name { font-size: 16px; color: var(--ink); }
+  .answer-btn.theory .mode-name { font-family: ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: 0.5px; }
+  .answer-btn .mode-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .answer-btn.correct { border-color: var(--green); background: rgba(143,185,156,0.15); }
+  .answer-btn.correct .mode-name { color: var(--green); }
+  .answer-btn.wrong { border-color: var(--red); background: rgba(199,93,93,0.1); }
+  .answer-btn.wrong .mode-name { color: var(--red); }
+  .answer-btn.disabled { cursor: default; opacity: 0.7; }
+  .answer-btn.reveal { border-color: var(--green); }
+
+  /* FEEDBACK */
+  .feedback { text-align: center; min-height: 40px; font-size: 14px; margin: 12px 0; }
+  .feedback.correct { color: var(--green); }
+  .feedback.wrong { color: var(--red); }
+  .feedback .explain {
+    display: block; margin-top: 10px; padding: 10px 14px;
+    background: #1f1a28; border-left: 2px solid var(--warm); border-radius: 0 4px 4px 0;
+    color: var(--muted); font-size: 12px; text-align: left; line-height: 1.55;
+  }
+  .feedback .explain strong { color: var(--warm); }
+  .feedback .explain code { color: var(--accent); background: #14111a; padding: 1px 6px; border-radius: 3px; font-size: 11px; }
+
+  /* PROGRESS DOTS */
+  .progress-dots { display: flex; gap: 6px; justify-content: center; margin: 16px 0; }
+  .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 1px solid var(--grid); background: #1f1a28;
+  }
+  .dot.correct { background: var(--green); border-color: var(--green); }
+  .dot.wrong { background: var(--red); border-color: var(--red); }
+  .dot.current { border-color: var(--warm); box-shadow: 0 0 8px rgba(212,163,115,0.4); }
+
+  /* RESULTS */
+  .results { text-align: center; padding: 24px; }
+  .results .big-score { font-size: 48px; color: var(--warm); margin: 12px 0; }
+  .results .verdict { font-size: 16px; margin: 12px 0; }
+  .results .verdict.pass { color: var(--green); }
+  .results .verdict.fail { color: var(--red); }
+  .results .best { font-size: 12px; color: var(--muted); margin: 8px 0; }
+
+  .play-wrap { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<nav style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding:10px 14px; background:#241e2d; border:1px solid #3a3244; border-radius:6px; font-size:12px; color:#8a7f92;">
+  <a href="index.html" style="color:#d4a373; text-decoration:none;">← Module: Modes</a>
+  <span>Lesson 4 of 4 — Snap Quiz</span>
+  <span style="color:#8a7f92;">Capstone</span>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, #302438, #241e2d); border:1px solid #d4a373; border-radius:6px; padding:14px 18px; margin-bottom:20px; color:#d4a373; font-size:13px;">
+  ✓ Module complete! <a href="index.html" style="color:#c17a9c;">Back to module →</a>
+</div>
+
+<h1>~ Snap Quiz: Name That Mode ~</h1>
+<p class="sub">10 questions. 7/10 to pass. Pick how you want to be tested.</p>
+
+<!-- Oscilloscope (hidden for theory-only quizzes) -->
+<div class="panel" id="scopePanel" style="padding: 12px;">
+  <canvas id="scope" width="1200" height="120" style="width:100%; height:120px; display:block; background:#14111a; border-radius:4px;"></canvas>
+</div>
+
+<!-- Quiz Area -->
+<div class="panel" id="quizPanel">
+  <!-- Before start -->
+  <div id="startScreen" style="text-align: center; padding: 16px 8px 20px;">
+    <p style="color: var(--muted); margin: 0 0 20px;">Pick your mode. You can switch between attempts.</p>
+    <div class="mode-picker" id="modePicker">
+      <label class="mode-option" data-mode="theory">
+        <input type="radio" name="quiz-mode" value="theory">
+        <div class="mode-option-title">Theory</div>
+        <div class="mode-option-sub">Construction, parent scales, characteristic notes — know the modes on paper.</div>
+      </label>
+      <label class="mode-option" data-mode="mixed">
+        <input type="radio" name="quiz-mode" value="mixed">
+        <div class="mode-option-title">Mixed</div>
+        <div class="mode-option-sub">Alternates theory and ear. Theory-first, so you build the scaffold before identifying by sound.</div>
+      </label>
+      <label class="mode-option" data-mode="ear">
+        <input type="radio" name="quiz-mode" value="ear">
+        <div class="mode-option-title">Ear</div>
+        <div class="mode-option-sub">Drone + melody, identify by sound. The original gauntlet.</div>
+      </label>
+    </div>
+    <button id="startQuizBtn" class="primary" style="font-size: 16px; padding: 14px 32px; margin-top: 24px;">▶ Start Quiz</button>
+  </div>
+
+  <!-- During quiz -->
+  <div id="quizActive" style="display: none;">
+    <div class="quiz-header">
+      <span class="q-num" id="qNum">Question 1 / 10</span>
+      <span style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted);">
+        vol <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" style="width: 64px; accent-color: #d4a373;">
+        <span id="volVal" style="width: 28px; text-align: right;">80%</span>
+      </span>
+      <span class="score" id="scoreLabel">Score: <strong>0</strong></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px;">
+      <span class="question-badge" id="qBadge">Theory</span>
+      <span class="key-label" id="keyLabel" style="margin-bottom:0;"></span>
+    </div>
+    <div class="progress-dots" id="progressDots"></div>
+    <div class="theory-prompt" id="theoryPrompt" style="display:none;"></div>
+    <div class="play-wrap" id="playWrap" style="display:none;">
+      <button id="replayBtn" class="primary">▶ play again</button>
+      <button id="stopQuizAudio">■ stop</button>
+    </div>
+    <div class="answers" id="answers"></div>
+    <div class="feedback" id="feedback"></div>
+    <button id="nextBtn" style="display:none; margin: 12px auto;">Next Question →</button>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsScreen" style="display: none;" class="results">
+  </div>
+</div>
+
+<script>
+// ============================================================
+// MODE DEFINITIONS — intervals, ear melodies, and theory data
+// ============================================================
+// intervals: semitone offsets from the mode's root
+// melodies: sequences of scale-degree indices (0-6 = intervals[i], 7 = octave)
+// parentDegree: which scale degree the mode lives on in its parent major scale
+// chordQuality: quality of the triad built on the mode's root
+// brightness: 1 (brightest) to 7 (darkest) — the diatonic brightness ladder
+// formula: interval-formula string vs. the major scale
+// characteristic: the single most distinguishing interval vs. Ionian
+const QUIZ_MODES = [
+  { name: 'Ionian',     intervals: [0,2,4,5,7,9,11], hint: 'bright, resolved — the "normal" major',   parentDegree: 1, chordQuality: 'Major',      brightness: 2, formula: '1 2 3 4 5 6 7',      characteristic: null,
+    melodies: [[0,2,4,7], [0,4,7,4], [7,5,4,2], [0,2,4,5]] },
+  { name: 'Dorian',     intervals: [0,2,3,5,7,9,10], hint: 'minor but smooth — raised 6th',            parentDegree: 2, chordQuality: 'Minor',      brightness: 4, formula: '1 2 ♭3 4 5 6 ♭7',   characteristic: '♮6',
+    melodies: [[0,2,5,7], [0,5,4,2], [5,4,2,0], [0,2,5,4]] },
+  { name: 'Phrygian',   intervals: [0,1,3,5,7,8,10], hint: 'dark, spanish — flat 2nd',                 parentDegree: 3, chordQuality: 'Minor',      brightness: 6, formula: '1 ♭2 ♭3 4 5 ♭6 ♭7', characteristic: '♭2',
+    melodies: [[0,1,3,4], [0,4,3,1], [4,3,1,0], [0,1,4,3]] },
+  { name: 'Lydian',     intervals: [0,2,4,6,7,9,11], hint: 'dreamy, floating — sharp 4th',             parentDegree: 4, chordQuality: 'Major',      brightness: 1, formula: '1 2 3 ♯4 5 6 7',    characteristic: '♯4',
+    melodies: [[0,2,3,4], [0,3,4,2], [4,3,2,0], [0,2,3,7]] },
+  { name: 'Mixolydian', intervals: [0,2,4,5,7,9,10], hint: 'bluesy, confident — flat 7th',             parentDegree: 5, chordQuality: 'Major',      brightness: 3, formula: '1 2 3 4 5 6 ♭7',    characteristic: '♭7',
+    melodies: [[0,2,4,6], [0,4,6,4], [6,4,2,0], [0,4,5,6]] },
+  { name: 'Aeolian',    intervals: [0,2,3,5,7,8,10], hint: 'melancholy — natural minor',               parentDegree: 6, chordQuality: 'Minor',      brightness: 5, formula: '1 2 ♭3 4 5 ♭6 ♭7',  characteristic: '♭6',
+    melodies: [[0,2,4,5], [0,4,5,2], [5,4,2,0], [0,2,5,4]] },
+  { name: 'Locrian',    intervals: [0,1,3,5,6,8,10], hint: 'unstable, tense — flat 2nd and flat 5th',  parentDegree: 7, chordQuality: 'Diminished', brightness: 7, formula: '1 ♭2 ♭3 4 ♭5 ♭6 ♭7', characteristic: '♭5',
+    melodies: [[0,1,3,4], [0,3,4,1], [4,3,1,0], [0,1,4,3]] },
+];
+const MODE_BY_NAME = Object.fromEntries(QUIZ_MODES.map(m => [m.name, m]));
+
+// Roots used for both ear (MIDI-based) and theory (name-based) questions.
+const ROOTS = [
+  { name: 'C',  midi: 48 },
+  { name: 'D',  midi: 50 },
+  { name: 'E',  midi: 52 },
+  { name: 'F',  midi: 53 },
+  { name: 'G',  midi: 55 },
+  { name: 'A',  midi: 57 },
+  { name: 'B♭', midi: 58 },
+];
+
+// For reverse-parent questions, the pool of major-key roots to ask about.
+const MAJOR_KEYS_FOR_REVERSE = ['C', 'D', 'E', 'F', 'G', 'A', 'B♭'];
+// For parent-scale distractors, a wider pool of major-key names.
+const ALL_MAJOR_KEYS = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+
+// ============================================================
+// HELPERS
+// ============================================================
+function midiToNote(midi) {
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const oct = Math.floor(midi / 12) - 1;
+  return names[midi % 12] + oct;
+}
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+function ordinal(n) { return ['1st','2nd','3rd','4th','5th','6th','7th'][n - 1] || (n + 'th'); }
+
+// ---- Scale spelling (one letter per degree, add accidentals) ----
+const LETTERS = ['C','D','E','F','G','A','B'];
+const LETTER_SEMITONES = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+
+function parseRootName(name) {
+  const letter = name[0];
+  const acc = name.slice(1);
+  const accVal = (acc === '♯' || acc === '#') ? 1 : (acc === '♭' || acc === 'b') ? -1 : 0;
+  return { letter, accVal, semitone: (LETTER_SEMITONES[letter] + accVal + 12) % 12 };
+}
+
+function accidentalFromDelta(delta) {
+  if (delta === 0) return '';
+  if (delta === 1) return '♯';
+  if (delta === -1) return '♭';
+  if (delta === 2) return '𝄪';
+  if (delta === -2) return '𝄫';
+  return '?';
+}
+
+function spellScale(rootName, intervals) {
+  const { letter, semitone: rootSemi } = parseRootName(rootName);
+  const rootIdx = LETTERS.indexOf(letter);
+  return intervals.map((interval, i) => {
+    const tgtLetter = LETTERS[(rootIdx + i) % 7];
+    const natural = LETTER_SEMITONES[tgtLetter];
+    const tgtSemi = (rootSemi + interval) % 12;
+    let delta = tgtSemi - natural;
+    if (delta > 6) delta -= 12;
+    if (delta < -6) delta += 12;
+    return tgtLetter + accidentalFromDelta(delta);
+  });
+}
+
+function parentMajorOf(modeName, rootName) {
+  // Given a mode (e.g. "Dorian") at a root (e.g. "D"), return the parent major key name (e.g. "C").
+  const mode = MODE_BY_NAME[modeName];
+  const { letter, semitone } = parseRootName(rootName);
+  const rootLetterIdx = LETTERS.indexOf(letter);
+  const parentLetter = LETTERS[(rootLetterIdx - (mode.parentDegree - 1) + 7) % 7];
+  const IONIAN = [0,2,4,5,7,9,11];
+  const parentSemi = (semitone - IONIAN[mode.parentDegree - 1] + 12) % 12;
+  let delta = parentSemi - LETTER_SEMITONES[parentLetter];
+  if (delta > 6) delta -= 12;
+  if (delta < -6) delta += 12;
+  return parentLetter + accidentalFromDelta(delta);
+}
+
+function modeRootFromParent(majorName, parentDegree) {
+  // Given a major key (e.g. "G") and a degree (e.g. 5), return the mode root (e.g. "D").
+  const { letter, semitone } = parseRootName(majorName);
+  const majorLetterIdx = LETTERS.indexOf(letter);
+  const modeLetter = LETTERS[(majorLetterIdx + parentDegree - 1) % 7];
+  const IONIAN = [0,2,4,5,7,9,11];
+  const modeSemi = (semitone + IONIAN[parentDegree - 1]) % 12;
+  let delta = modeSemi - LETTER_SEMITONES[modeLetter];
+  if (delta > 6) delta -= 12;
+  if (delta < -6) delta += 12;
+  return modeLetter + accidentalFromDelta(delta);
+}
+
+// ============================================================
+// THEORY QUESTION GENERATORS
+// Each returns an unfinalized question; finalizeQuestion() computes correctIdx.
+// ============================================================
+function genConstruction() {
+  const mode = pick(QUIZ_MODES);
+  const root = pick(ROOTS);
+  const correctSpelling = spellScale(root.name, mode.intervals);
+  const wrongModes = shuffle(QUIZ_MODES.filter(m => m.name !== mode.name)).slice(0, 3);
+  const options = shuffle([
+    { label: correctSpelling.join(' '), isCorrect: true },
+    ...wrongModes.map(m => ({ label: spellScale(root.name, m.intervals).join(' '), isCorrect: false })),
+  ]);
+  return {
+    type: 'theory',
+    subtype: 'construction',
+    prompt: `Which spelling is <strong>${root.name} ${mode.name}</strong>?`,
+    subPrompt: `Formula: <code>${mode.formula}</code>`,
+    options,
+    explanation: `<strong>${root.name} ${mode.name}</strong> = ${correctSpelling.join(' ')}. That's the <code>${mode.formula}</code> pattern applied to ${root.name}.`,
+  };
+}
+
+function genParentScale() {
+  // Skip Ionian (parent is itself, trivial) and Locrian (rare key).
+  const eligible = QUIZ_MODES.filter(m => m.name !== 'Ionian');
+  const mode = pick(eligible);
+  const root = pick(ROOTS);
+  const parent = parentMajorOf(mode.name, root.name);
+  const distractors = shuffle(ALL_MAJOR_KEYS.filter(k => k !== parent)).slice(0, 3);
+  const options = shuffle([
+    { label: parent + ' major', isCorrect: true },
+    ...distractors.map(d => ({ label: d + ' major', isCorrect: false })),
+  ]);
+  return {
+    type: 'theory',
+    subtype: 'parent-scale',
+    prompt: `<strong>${root.name} ${mode.name}</strong> is the <strong>${ordinal(mode.parentDegree)}</strong> mode of which major scale?`,
+    subPrompt: `Same notes as the parent — just starting on a different degree.`,
+    options,
+    explanation: `${mode.name} is the ${ordinal(mode.parentDegree)} mode. Start on the ${ordinal(mode.parentDegree)} degree of <strong>${parent} major</strong> and you get <strong>${root.name} ${mode.name}</strong> — same notes, different tonal center.`,
+  };
+}
+
+function genReverseParent() {
+  const majorRoot = pick(MAJOR_KEYS_FOR_REVERSE);
+  const mode = pick(QUIZ_MODES.filter(m => m.name !== 'Ionian'));
+  const modeRoot = modeRootFromParent(majorRoot, mode.parentDegree);
+  const correctLabel = `${modeRoot} ${mode.name}`;
+  const wrongModes = shuffle(QUIZ_MODES.filter(m => m.name !== mode.name)).slice(0, 3);
+  const options = shuffle([
+    { label: correctLabel, isCorrect: true },
+    ...wrongModes.map(m => ({ label: `${modeRoot} ${m.name}`, isCorrect: false })),
+  ]);
+  return {
+    type: 'theory',
+    subtype: 'reverse-parent',
+    prompt: `The <strong>${ordinal(mode.parentDegree)}</strong> mode of <strong>${majorRoot} major</strong> is…?`,
+    subPrompt: `Degree ${mode.parentDegree} of the ${majorRoot} major scale becomes the root.`,
+    options,
+    explanation: `The ${ordinal(mode.parentDegree)} degree of ${majorRoot} major is <strong>${modeRoot}</strong>. Play the ${majorRoot} major scale but treat ${modeRoot} as home — you get <strong>${modeRoot} ${mode.name}</strong>.`,
+  };
+}
+
+function genCharacteristic() {
+  const eligible = QUIZ_MODES.filter(m => m.characteristic !== null);
+  const mode = pick(eligible);
+  const allIntervals = ['♭2', '♯2', '♭3', '♯4', '♭5', '♯5', '♮6', '♭6', '♭7'];
+  const distractors = shuffle(allIntervals.filter(n => n !== mode.characteristic)).slice(0, 3);
+  const options = shuffle([
+    { label: mode.characteristic, isCorrect: true },
+    ...distractors.map(d => ({ label: d, isCorrect: false })),
+  ]);
+  return {
+    type: 'theory',
+    subtype: 'characteristic',
+    prompt: `Which interval is <strong>${mode.name}'s</strong> characteristic note — the one that sets it apart from its nearest neighbor?`,
+    subPrompt: `The "color tone" you'd lean on to make it sound like ${mode.name}.`,
+    options,
+    explanation: `<strong>${mode.name}</strong>'s signature is the <code>${mode.characteristic}</code>. ${mode.hint}.`,
+  };
+}
+
+function genChordQuality() {
+  const mode = pick(QUIZ_MODES);
+  const options = shuffle([
+    { label: 'Major',      isCorrect: mode.chordQuality === 'Major' },
+    { label: 'Minor',      isCorrect: mode.chordQuality === 'Minor' },
+    { label: 'Diminished', isCorrect: mode.chordQuality === 'Diminished' },
+    { label: 'Augmented',  isCorrect: false },
+  ]);
+  return {
+    type: 'theory',
+    subtype: 'chord-quality',
+    prompt: `The triad built on the root of <strong>${mode.name}</strong> is…?`,
+    subPrompt: `Just the 1, 3, and 5 of the mode.`,
+    options,
+    explanation: `${mode.name}'s 1–3–5 gives a <strong>${mode.chordQuality.toLowerCase()}</strong> triad. Major modes (Ionian, Lydian, Mixolydian) have a major 3rd. Minor modes (Dorian, Phrygian, Aeolian) have a minor 3rd. Locrian has a minor 3rd and a ♭5, so its triad is diminished.`,
+  };
+}
+
+function genBrightness() {
+  const [a, b] = shuffle(QUIZ_MODES).slice(0, 2);
+  const brighter = a.brightness < b.brightness ? a : b;
+  const options = shuffle([
+    { label: a.name, isCorrect: a === brighter },
+    { label: b.name, isCorrect: b === brighter },
+    { label: 'Equal brightness', isCorrect: false },
+    { label: 'Depends on the key', isCorrect: false },
+  ]);
+  return {
+    type: 'theory',
+    subtype: 'brightness',
+    prompt: `Which is <strong>brighter</strong>: <strong>${a.name}</strong> or <strong>${b.name}</strong>?`,
+    subPrompt: `Brightness = how many notes are raised vs. flattened relative to neighbors on the ladder.`,
+    options,
+    explanation: `<strong>${brighter.name}</strong> is brighter. The full ladder (brightest → darkest): Lydian · Ionian · Mixolydian · Dorian · Aeolian · Phrygian · Locrian. Each step flattens one note.`,
+  };
+}
+
+const THEORY_GENERATORS = [
+  genConstruction, genParentScale, genReverseParent,
+  genCharacteristic, genChordQuality, genBrightness,
+];
+
+function generateTheoryQuestion() {
+  return pick(THEORY_GENERATORS)();
+}
+
+function finalizeQuestion(q) {
+  q.correctIdx = q.options.findIndex(o => o.isCorrect);
+  q.correctLabel = q.options[q.correctIdx].label;
+  return q;
+}
+
+// ============================================================
+// EAR QUESTION GENERATOR
+// ============================================================
+function generateEarQuestion(usedCombos) {
+  let mode, root, combo;
+  do {
+    mode = pick(QUIZ_MODES);
+    root = pick(ROOTS);
+    combo = mode.name + '-' + root.name;
+  } while (usedCombos.has(combo) && usedCombos.size < QUIZ_MODES.length * ROOTS.length);
+  usedCombos.add(combo);
+
+  const melody = pick(mode.melodies);
+  const melodyNotesFixed = melody.map(deg => {
+    if (deg === 7) return midiToNote(root.midi + 12 + 12);
+    return midiToNote(root.midi + 12 + mode.intervals[deg]);
+  });
+
+  const wrongModes = shuffle(QUIZ_MODES.filter(m => m.name !== mode.name)).slice(0, 3);
+  const options = shuffle([mode, ...wrongModes]).map(m => ({
+    label: m.name, hint: m.hint, isCorrect: m === mode,
+  }));
+
+  return finalizeQuestion({
+    type: 'ear',
+    mode, root,
+    droneNote: midiToNote(root.midi),
+    melodyNotes: melodyNotesFixed,
+    options,
+    explanation: `It was <strong>${mode.name}</strong> — ${mode.hint}.`,
+  });
+}
+
+// ============================================================
+// QUIZ STATE
+// ============================================================
+const TOTAL_QUESTIONS = 10;
+const PASS_SCORE = 7;
+const PROGRESS_KEY = 'rizzo-studio-modes';
+const QUIZ_MODE_KEY = 'rizzo-studio-modes-quiz-mode';
+
+let questions = [];
+let currentQ = 0;
+let score = 0;
+let answered = false;
+let results = []; // 'correct' | 'wrong' per question
+let quizMode = 'mixed'; // 'theory' | 'ear' | 'mixed'
+
+let started = false;
+let droneSynth, melodySynth, reverb, masterGain, scopeAnalyser, lpFilter;
+let audioInitialized = false;
+let scopeRAF;
+
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+function loadQuizMode() {
+  const stored = localStorage.getItem(QUIZ_MODE_KEY);
+  return (stored === 'theory' || stored === 'ear' || stored === 'mixed') ? stored : 'mixed';
+}
+function saveQuizMode(m) { localStorage.setItem(QUIZ_MODE_KEY, m); }
+
+// ============================================================
+// GENERATE QUIZ
+// ============================================================
+function generateQuiz() {
+  questions = [];
+  const usedCombos = new Set();
+  for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+    let q;
+    // Mixed mode: theory on even indices (0, 2, 4...), ear on odd (1, 3, 5...)
+    // This means mixed starts with a theory question — less intimidating.
+    const useTheory =
+      quizMode === 'theory' ||
+      (quizMode === 'mixed' && i % 2 === 0);
+    if (useTheory) {
+      q = finalizeQuestion(generateTheoryQuestion());
+    } else {
+      q = generateEarQuestion(usedCombos);
+    }
+    questions.push(q);
+  }
+}
+
+// ============================================================
+// PLAY QUESTION AUDIO (ear only)
+// ============================================================
+function playQuestion(q) {
+  if (!audioInitialized || q.type !== 'ear') return;
+  droneSynth.triggerRelease('+0.01');
+  setTimeout(() => {
+    droneSynth.triggerAttack(q.droneNote, Tone.now(), 0.3);
+    const now = Tone.now() + 0.8;
+    q.melodyNotes.forEach((note, i) => {
+      melodySynth.triggerAttackRelease(note, '4n', now + i * 0.45, 0.6);
+    });
+  }, 80);
+}
+
+function stopAudio() {
+  if (!audioInitialized) return;
+  droneSynth.triggerRelease('+0.05');
+  melodySynth.releaseAll();
+}
+
+// ============================================================
+// RENDER QUESTION
+// ============================================================
+function renderQuestion() {
+  const q = questions[currentQ];
+  answered = false;
+
+  document.getElementById('qNum').textContent = `Question ${currentQ + 1} / ${TOTAL_QUESTIONS}`;
+  document.getElementById('scoreLabel').innerHTML = `Score: <strong>${score}</strong>`;
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('nextBtn').style.display = 'none';
+
+  const keyLabel = document.getElementById('keyLabel');
+  const promptEl = document.getElementById('theoryPrompt');
+  const playWrap = document.getElementById('playWrap');
+  const badge = document.getElementById('qBadge');
+
+  if (q.type === 'ear') {
+    keyLabel.style.display = '';
+    keyLabel.textContent = `Root: ${q.root.name}`;
+    promptEl.style.display = 'none';
+    promptEl.innerHTML = '';
+    playWrap.style.display = 'flex';
+    badge.className = 'question-badge ear';
+    badge.textContent = 'Ear';
+  } else {
+    keyLabel.style.display = 'none';
+    promptEl.style.display = 'block';
+    promptEl.innerHTML = `<div>${q.prompt}</div>` +
+      (q.subPrompt ? `<div class="sub-prompt">${q.subPrompt}</div>` : '');
+    playWrap.style.display = 'none';
+    badge.className = 'question-badge theory';
+    badge.textContent = 'Theory';
+  }
+
+  // Progress dots
+  const dotsEl = document.getElementById('progressDots');
+  dotsEl.innerHTML = '';
+  for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    if (i < results.length) dot.classList.add(results[i]);
+    if (i === currentQ) dot.classList.add('current');
+    dotsEl.appendChild(dot);
+  }
+
+  // Answer buttons
+  const answersEl = document.getElementById('answers');
+  answersEl.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'answer-btn' + (q.type === 'theory' ? ' theory' : '');
+    btn.innerHTML =
+      `<div class="mode-name">${opt.label}</div>` +
+      (opt.hint ? `<div class="mode-hint">${opt.hint}</div>` : '');
+    btn.addEventListener('click', () => submitAnswer(i));
+    answersEl.appendChild(btn);
+  });
+
+  // Auto-play for ear questions
+  if (q.type === 'ear') playQuestion(q);
+}
+
+// ============================================================
+// SUBMIT ANSWER
+// ============================================================
+function submitAnswer(idx) {
+  if (answered) return;
+  answered = true;
+
+  const q = questions[currentQ];
+  const correct = idx === q.correctIdx;
+  const btns = document.querySelectorAll('#answers .answer-btn');
+  const feedback = document.getElementById('feedback');
+
+  if (correct) {
+    score++;
+    results.push('correct');
+    btns[idx].classList.add('correct');
+    feedback.className = 'feedback correct';
+    feedback.innerHTML =
+      `✓ Correct!` +
+      (q.explanation ? `<span class="explain">${q.explanation}</span>` : '');
+  } else {
+    results.push('wrong');
+    btns[idx].classList.add('wrong');
+    btns[q.correctIdx].classList.add('correct', 'reveal');
+    feedback.className = 'feedback wrong';
+    feedback.innerHTML =
+      `✗ It was <strong>${q.correctLabel}</strong>` +
+      (q.explanation ? `<span class="explain">${q.explanation}</span>` : '');
+  }
+
+  btns.forEach(b => b.classList.add('disabled'));
+  document.getElementById('scoreLabel').innerHTML = `Score: <strong>${score}</strong>`;
+
+  const dots = document.querySelectorAll('#progressDots .dot');
+  dots[currentQ].classList.add(correct ? 'correct' : 'wrong');
+  dots[currentQ].classList.remove('current');
+
+  if (currentQ < TOTAL_QUESTIONS - 1) {
+    const nextBtn = document.getElementById('nextBtn');
+    nextBtn.style.display = 'block';
+    nextBtn.style.margin = '12px auto';
+  } else {
+    setTimeout(showResults, 1400);
+  }
+
+  stopAudio();
+}
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+  currentQ++;
+  renderQuestion();
+});
+
+// ============================================================
+// RESULTS
+// ============================================================
+function showResults() {
+  document.getElementById('quizActive').style.display = 'none';
+  const resultsEl = document.getElementById('resultsScreen');
+  resultsEl.style.display = 'block';
+
+  const passed = score >= PASS_SCORE;
+  const progress = loadProgress();
+
+  // Track best score per quiz-mode (so theory PBs don't overwrite ear PBs).
+  const bestKey = 'quizBest_' + quizMode;
+  const attemptsKey = 'quizAttempts_' + quizMode;
+  if (!progress[bestKey] || score > progress[bestKey]) progress[bestKey] = score;
+  progress[attemptsKey] = (progress[attemptsKey] || 0) + 1;
+
+  // Preserve legacy top-level best for back-compat with index.html.
+  if (!progress.quizBest || score > progress.quizBest) progress.quizBest = score;
+  progress.quizAttempts = (progress.quizAttempts || 0) + 1;
+
+  if (passed) {
+    progress.lesson4 = 'complete';
+    progress.lesson4CompletedAt = new Date().toISOString();
+    progress.lesson4CompletedMode = quizMode;
+    progress.moduleComplete = true;
+    document.getElementById('completeBanner').style.display = 'block';
+  }
+  saveProgress(progress);
+
+  const modeLabel = quizMode === 'theory' ? 'Theory' : quizMode === 'ear' ? 'Ear' : 'Mixed';
+  const bestLine =
+    `Best (${modeLabel}): ${progress[bestKey]}/${TOTAL_QUESTIONS}` +
+    ` · Attempts: ${progress[attemptsKey]}`;
+
+  resultsEl.innerHTML = `
+    <h2 style="margin-top: 0;">Quiz Complete · ${modeLabel}</h2>
+    <div class="big-score">${score} / ${TOTAL_QUESTIONS}</div>
+    <div class="verdict ${passed ? 'pass' : 'fail'}">
+      ${passed ? '✓ You passed! Module complete.' : `✗ Need ${PASS_SCORE}/${TOTAL_QUESTIONS} to pass. You'll get it.`}
+    </div>
+    <div class="best">${bestLine}</div>
+    <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <button class="primary" id="retakeBtn">Retake (${modeLabel})</button>
+      <button id="changeModeBtn">Change Mode</button>
+      <a href="index.html" style="padding: 10px 20px; border: 1px solid var(--grid); border-radius: 4px; color: var(--ink); text-decoration: none; font-size: 13px;">Back to Module</a>
+    </div>`;
+
+  document.getElementById('retakeBtn').addEventListener('click', () => {
+    resultsEl.style.display = 'none';
+    document.getElementById('quizActive').style.display = 'block';
+    currentQ = 0; score = 0; results = [];
+    generateQuiz();
+    renderQuestion();
+  });
+
+  document.getElementById('changeModeBtn').addEventListener('click', () => {
+    resultsEl.style.display = 'none';
+    document.getElementById('startScreen').style.display = 'block';
+    currentQ = 0; score = 0; results = [];
+    highlightSelectedMode();
+  });
+}
+
+// ============================================================
+// TONE.JS AUDIO CHAIN
+// ============================================================
+function buildChain() {
+  if (audioInitialized) return;
+  masterGain = new Tone.Gain(1).toDestination();
+  scopeAnalyser = new Tone.Analyser('waveform', 1024);
+  masterGain.connect(scopeAnalyser);
+
+  reverb = new Tone.Reverb({ decay: 4, wet: 0.35 }).connect(masterGain);
+  lpFilter = new Tone.Filter({ frequency: 3500, type: 'lowpass', rolloff: -12 }).connect(reverb);
+
+  droneSynth = new Tone.MonoSynth({
+    oscillator: { type: 'sawtooth' },
+    envelope: { attack: 0.8, decay: 0.3, sustain: 0.9, release: 2.0 },
+    filter: { Q: 2, type: 'lowpass', rolloff: -24 },
+    filterEnvelope: { attack: 0.5, decay: 0.3, sustain: 0.6, baseFrequency: 200, octaves: 2.5 },
+    volume: -18
+  }).connect(lpFilter);
+
+  const droneLFO = new Tone.LFO({ frequency: 0.15, min: 150, max: 400, type: 'sine' }).start();
+  droneLFO.connect(droneSynth.filter.frequency);
+
+  melodySynth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.8 },
+    volume: -8
+  }).connect(lpFilter);
+
+  audioInitialized = true;
+}
+
+// ============================================================
+// OSCILLOSCOPE
+// ============================================================
+function startScope() {
+  const canvas = document.getElementById('scope');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  function draw() {
+    scopeRAF = requestAnimationFrame(draw);
+    const data = scopeAnalyser ? scopeAnalyser.getValue() : new Float32Array(1024);
+    ctx.fillStyle = 'rgba(20, 17, 26, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(58, 50, 68, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+    ctx.strokeStyle = '#d4a373';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(212,163,115,0.7)';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const step = W / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const x = i * step;
+      const y = H/2 + (data[i] || 0) * (H/2) * 0.9;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  draw();
+}
+
+// ============================================================
+// MODE PICKER WIRING
+// ============================================================
+function highlightSelectedMode() {
+  const picker = document.getElementById('modePicker');
+  picker.querySelectorAll('.mode-option').forEach(opt => {
+    const isSelected = opt.dataset.mode === quizMode;
+    opt.classList.toggle('selected', isSelected);
+    const input = opt.querySelector('input');
+    if (input) input.checked = isSelected;
+  });
+}
+
+function wireModePicker() {
+  const picker = document.getElementById('modePicker');
+  picker.querySelectorAll('.mode-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      quizMode = opt.dataset.mode;
+      saveQuizMode(quizMode);
+      highlightSelectedMode();
+    });
+  });
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (masterGain) masterGain.gain.rampTo(v, 0.05);
+});
+
+document.getElementById('startQuizBtn').addEventListener('click', async () => {
+  // Only spin up audio if the quiz will actually play sounds.
+  if (quizMode !== 'theory') {
+    await Tone.start();
+    buildChain();
+    if (!scopeRAF) startScope();
+  }
+  // Show/hide scope panel to match mode.
+  document.getElementById('scopePanel').style.display =
+    quizMode === 'theory' ? 'none' : 'block';
+  started = true;
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('quizActive').style.display = 'block';
+
+  currentQ = 0; score = 0; results = [];
+  generateQuiz();
+  renderQuestion();
+});
+
+document.getElementById('replayBtn').addEventListener('click', () => {
+  if (!started || currentQ >= questions.length) return;
+  const q = questions[currentQ];
+  if (q.type !== 'ear') return;
+  stopAudio();
+  setTimeout(() => playQuestion(q), 100);
+});
+
+document.getElementById('stopQuizAudio').addEventListener('click', () => {
+  stopAudio();
+});
+
+// ============================================================
+// INIT
+// ============================================================
+(function init() {
+  quizMode = loadQuizMode();
+  wireModePicker();
+  highlightSelectedMode();
+
+  const progress = loadProgress();
+  if (progress.lesson4 === 'complete') {
+    document.getElementById('completeBanner').style.display = 'block';
+  }
+})();
+</script>
+</body>
+</html>

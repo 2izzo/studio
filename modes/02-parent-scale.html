@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — The Parent Scale Illusion</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.5;
+    max-width: 1200px; margin: 0 auto;
+  }
+  nav a:hover { color: #c17a9c !important; }
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button { font-family: inherit; font-size: 13px; padding: 10px 20px; border: 1px solid var(--grid);
+           background: var(--panel); color: var(--ink); border-radius: 4px; cursor: pointer; }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  .complete-btn { background: transparent; border: 1px solid #8fb99c; color: #8fb99c; padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: #8fb99c; color: #1a1620; }
+  .complete-btn.done { background: #8fb99c; color: #1a1620; border-color: #8fb99c; cursor: default; }
+
+  .transport { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+  .drone-indicator { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .drone-indicator.on { color: var(--warm); }
+
+  /* DRONE SELECTOR — the heart of this lesson */
+  .drone-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 16px; }
+  .drone-btn {
+    padding: 14px 6px; text-align: center; border: 2px solid var(--grid);
+    border-radius: 6px; background: #1f1a28; cursor: pointer;
+    transition: all 0.3s;
+  }
+  .drone-btn:hover { border-color: var(--warm); }
+  .drone-btn.active { border-color: var(--warm); background: #302438; box-shadow: 0 0 24px rgba(212,163,115,0.2); }
+  .drone-btn .note-name { font-size: 22px; color: var(--ink); }
+  .drone-btn .mode-label { font-size: 10px; color: var(--accent); margin-top: 4px; }
+  .drone-btn .arrow { font-size: 16px; color: var(--warm); margin-bottom: 4px; opacity: 0; transition: opacity 0.3s; }
+  .drone-btn.active .arrow { opacity: 1; }
+
+  /* SCALE DISPLAY — same notes, different root highlighted */
+  .scale-display {
+    display: flex; gap: 4px; justify-content: center; align-items: center;
+    padding: 16px; margin: 16px 0;
+    font-size: 20px; letter-spacing: 2px;
+  }
+  .scale-note {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--grid); background: #1f1a28;
+    font-size: 16px; color: var(--ink);
+    transition: all 0.3s;
+  }
+  .scale-note.root { border-color: var(--warm); background: #302438; color: var(--warm); font-weight: bold; box-shadow: 0 0 16px rgba(212,163,115,0.3); }
+  .scale-note.characteristic { border-color: var(--accent); color: var(--accent); }
+  .scale-note.playing { background: var(--warm); color: var(--bg); transform: scale(1.15); }
+
+  /* AUTO-PLAY BUTTON */
+  .autoplay-wrap { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 12px 0; }
+
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 8px 0; }
+  .math code { background: #14111a; padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+
+  /* MODE INFO */
+  .mode-reveal {
+    text-align: center; padding: 12px;
+    font-size: 14px; color: var(--muted);
+    min-height: 60px;
+    transition: all 0.3s;
+  }
+  .mode-reveal .name { font-size: 20px; color: var(--warm); }
+  .mode-reveal .vibe { font-size: 12px; color: var(--accent); margin-top: 4px; }
+
+  @media (max-width: 700px) {
+    .drone-row { grid-template-columns: repeat(4, 1fr); }
+    .scale-note { width: 36px; height: 36px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<nav style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding:10px 14px; background:#241e2d; border:1px solid #3a3244; border-radius:6px; font-size:12px; color:#8a7f92;">
+  <a href="index.html" style="color:#d4a373; text-decoration:none;">← Module: Modes</a>
+  <span>Lesson 2 of 4 — The Parent Scale Illusion</span>
+  <a href="03-interchange.html" style="color:#d4a373; text-decoration:none;">Next: Modal Interchange Tease →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, #302438, #241e2d); border:1px solid #d4a373; border-radius:6px; padding:14px 18px; margin-bottom:20px; color:#d4a373; font-size:13px;">
+  ✓ Lesson 2 marked complete. <a href="index.html" style="color:#c17a9c;">Back to module →</a>
+</div>
+
+<h1>~ The Parent Scale Illusion ~</h1>
+<p class="sub">Seven notes. One scale. Move the drone — the mode changes. This is the moment you realize modes aren't seven different things. They're seven perspectives on the same thing.</p>
+
+<!-- Oscilloscope -->
+<div class="panel" style="padding: 12px;">
+  <canvas id="scope" width="1200" height="120" style="width:100%; height:120px; display:block; background:#14111a; border-radius:4px;"></canvas>
+</div>
+
+<!-- Transport -->
+<div class="panel">
+  <div class="transport">
+    <button id="startBtn" class="primary">▶ start</button>
+    <button id="stopBtn">■ stop</button>
+    <span style="color: var(--muted); display: flex; align-items: center; gap: 8px; font-size: 12px; margin-left: auto;">
+      <label for="vol" style="color: var(--muted);">vol</label>
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" style="width: 80px; accent-color: #d4a373;">
+      <span style="width: 28px; text-align: right;" id="volVal">80%</span>
+    </span>
+    <span id="droneLabel" class="drone-indicator">drone: off</span>
+  </div>
+</div>
+
+<!-- The Scale — always C D E F G A B -->
+<h2>The Notes (always the same)</h2>
+<div class="panel">
+  <div class="scale-display" id="scaleDisplay"></div>
+  <div class="autoplay-wrap">
+    <button id="playScaleBtn">▶ play the scale ascending</button>
+  </div>
+</div>
+
+<!-- Drone Selector -->
+<h2>Move the Drone</h2>
+<div class="panel">
+  <div class="drone-row" id="droneRow"></div>
+  <div class="mode-reveal" id="modeReveal">
+    <div>Click a note above to move the drone there.</div>
+    <div class="vibe">Same notes — different world.</div>
+  </div>
+</div>
+
+<!-- The Why -->
+<h2>The Illusion</h2>
+<div class="panel math">
+  <p><strong style="color: var(--warm);">1. There are no "mode notes."</strong> C Ionian, D Dorian, E Phrygian, F Lydian, G Mixolydian, A Aeolian, B Locrian — <em>every single one</em> uses the notes <code>C D E F G A B</code>. Not one note changes. The only thing that moves is the drone.</p>
+
+  <p><strong style="color: var(--warm);">2. The drone is the trick.</strong> Your ear interprets every note <em>relative to the drone</em>. When the drone is on C, the note F is a perfect 4th — stable, normal. When the drone moves to F, that same note F is now the root — and B (the same B that was there all along) becomes a ♯4, the "floating" Lydian interval. Nothing moved. Your <em>frame</em> moved.</p>
+
+  <p><strong style="color: var(--warm);">3. This is why modes feel different.</strong> The intervals between consecutive notes in C major aren't evenly spaced — there are whole steps and half steps. When you rotate the starting point, the half steps fall in different places relative to the root. That's the whole game. Dorian has its half steps between 2–3 and 6–7. Phrygian has them between 1–2 and 5–6. Same raw material, different internal geometry.</p>
+
+  <p style="color: var(--muted);">Try this: start with drone on C (Ionian). Hit "play scale ascending." Now move the drone to D without stopping. Hear the scale again in your head — it's the same notes, but your brain re-parses them around D. That re-parsing is the illusion, and it's the entire foundation of modal music.</p>
+
+  <hr style="border:none; border-top:1px solid var(--grid); margin:20px 0;">
+  <p style="color: var(--muted); font-size: 12px; margin-bottom: 8px;">When you've moved the drone through all seven positions and felt the mood shift each time — without any notes changing:</p>
+  <button id="markComplete" class="complete-btn">Mark Lesson 2 Complete ✓</button>
+</div>
+
+<script>
+// ============================================================
+// MODE DATA — same C-major notes, drone moves
+// ============================================================
+const SCALE_NOTES = ['C','D','E','F','G','A','B'];
+const DRONE_MODES = [
+  { root: 'C', drone: 'C3', mode: 'Ionian', vibe: 'bright, resolved', characteristic: null, color: '#d4a373' },
+  { root: 'D', drone: 'D3', mode: 'Dorian', vibe: 'smooth, jazzy', characteristic: 'B', color: '#7eb8c9' },
+  { root: 'E', drone: 'E3', mode: 'Phrygian', vibe: 'dark, spanish', characteristic: 'F', color: '#c75d5d' },
+  { root: 'F', drone: 'F3', mode: 'Lydian', vibe: 'dreamy, floating', characteristic: 'B', color: '#b38cd9' },
+  { root: 'G', drone: 'G3', mode: 'Mixolydian', vibe: 'bluesy, confident', characteristic: 'F', color: '#d4a373' },
+  { root: 'A', drone: 'A3', mode: 'Aeolian', vibe: 'melancholy, natural', characteristic: 'F', color: '#6e8fa5' },
+  { root: 'B', drone: 'B3', mode: 'Locrian', vibe: 'unstable, tense', characteristic: 'F', color: '#7a7a7a' },
+];
+
+let currentDrone = 0;
+let started = false;
+let droneOn = false;
+let isPlayingScale = false;
+
+// Tone.js
+let droneSynth, melodySynth, reverb, masterGain, scopeAnalyser, lpFilter;
+let scopeRAF;
+
+// ============================================================
+// RENDER SCALE DISPLAY
+// ============================================================
+const scaleDisplay = document.getElementById('scaleDisplay');
+function renderScale() {
+  scaleDisplay.innerHTML = '';
+  const dm = DRONE_MODES[currentDrone];
+  SCALE_NOTES.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'scale-note';
+    el.textContent = n;
+    el.dataset.note = n;
+    if (n === dm.root) el.classList.add('root');
+    if (dm.characteristic && n === dm.characteristic) el.classList.add('characteristic');
+    // Click to play this note
+    el.addEventListener('click', () => {
+      if (!started) return;
+      const octave = SCALE_NOTES.indexOf(n) >= SCALE_NOTES.indexOf(dm.root) ? 4 : 5;
+      // Use a consistent octave range: play in octave 4, wrapping to 5
+      const noteOct = n + '4';
+      melodySynth.triggerAttackRelease(noteOct, '4n', Tone.now(), 0.6);
+      el.classList.add('playing');
+      setTimeout(() => el.classList.remove('playing'), 300);
+    });
+    scaleDisplay.appendChild(el);
+  });
+}
+
+// ============================================================
+// RENDER DRONE BUTTONS
+// ============================================================
+const droneRow = document.getElementById('droneRow');
+DRONE_MODES.forEach((dm, i) => {
+  const div = document.createElement('div');
+  div.className = 'drone-btn' + (i === 0 ? ' active' : '');
+  div.innerHTML = `
+    <div class="arrow">▼</div>
+    <div class="note-name">${dm.root}</div>
+    <div class="mode-label">${dm.mode}</div>`;
+  div.addEventListener('click', () => switchDrone(i));
+  droneRow.appendChild(div);
+});
+
+function switchDrone(idx) {
+  currentDrone = idx;
+  const dm = DRONE_MODES[idx];
+
+  // Update buttons
+  document.querySelectorAll('.drone-btn').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+  });
+
+  // Update scale display
+  renderScale();
+
+  // Update reveal
+  const reveal = document.getElementById('modeReveal');
+  reveal.innerHTML = `
+    <div class="name" style="color:${dm.color}">${dm.mode}</div>
+    <div class="vibe">${dm.vibe}</div>
+    <div style="font-size:11px; margin-top:8px; color:var(--muted);">
+      ${dm.characteristic ? 'Characteristic note: ' + dm.characteristic : 'The reference scale — all others compared to this'}
+    </div>`;
+
+  // Move the drone
+  if (started && droneOn && droneSynth) {
+    droneSynth.triggerRelease('+0.05');
+    setTimeout(() => {
+      droneSynth.triggerAttack(dm.drone, Tone.now(), 0.3);
+    }, 100);
+    document.getElementById('droneLabel').textContent = 'drone: ' + dm.root;
+  }
+}
+
+// ============================================================
+// PLAY SCALE ASCENDING
+// ============================================================
+document.getElementById('playScaleBtn').addEventListener('click', () => {
+  if (!started || isPlayingScale) return;
+  isPlayingScale = true;
+
+  const dm = DRONE_MODES[currentDrone];
+  // Build the scale starting from the root, ascending through one octave
+  const rootIdx = SCALE_NOTES.indexOf(dm.root);
+  const orderedNotes = [];
+  for (let i = 0; i < 8; i++) {
+    const idx = (rootIdx + i) % 7;
+    const note = SCALE_NOTES[idx];
+    const octave = (rootIdx + i) >= 7 ? 5 : 4;
+    orderedNotes.push({ name: note, full: note + octave });
+  }
+
+  let step = 0;
+  const interval = setInterval(() => {
+    if (step >= orderedNotes.length) {
+      clearInterval(interval);
+      isPlayingScale = false;
+      return;
+    }
+    const n = orderedNotes[step];
+    melodySynth.triggerAttackRelease(n.full, '8n', Tone.now(), 0.6);
+
+    // Highlight in scale display
+    const noteEls = scaleDisplay.querySelectorAll('.scale-note');
+    noteEls.forEach(el => {
+      if (el.dataset.note === n.name) {
+        el.classList.add('playing');
+        setTimeout(() => el.classList.remove('playing'), 280);
+      }
+    });
+    step++;
+  }, 350);
+});
+
+// ============================================================
+// TONE.JS SIGNAL CHAIN
+// ============================================================
+function buildChain() {
+  masterGain = new Tone.Gain(1).toDestination();
+  scopeAnalyser = new Tone.Analyser('waveform', 1024);
+  masterGain.connect(scopeAnalyser);
+
+  reverb = new Tone.Reverb({ decay: 4, wet: 0.35 }).connect(masterGain);
+  lpFilter = new Tone.Filter({ frequency: 3500, type: 'lowpass', rolloff: -12 }).connect(reverb);
+
+  droneSynth = new Tone.MonoSynth({
+    oscillator: { type: 'sawtooth' },
+    envelope: { attack: 0.8, decay: 0.3, sustain: 0.9, release: 2.0 },
+    filter: { Q: 2, type: 'lowpass', rolloff: -24 },
+    filterEnvelope: { attack: 0.5, decay: 0.3, sustain: 0.6, baseFrequency: 200, octaves: 2.5 },
+    volume: -18
+  }).connect(lpFilter);
+
+  const droneLFO = new Tone.LFO({ frequency: 0.15, min: 150, max: 400, type: 'sine' }).start();
+  droneLFO.connect(droneSynth.filter.frequency);
+
+  melodySynth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.8 },
+    volume: -10
+  }).connect(lpFilter);
+}
+
+// ============================================================
+// TRANSPORT
+// ============================================================
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (masterGain) masterGain.gain.rampTo(v, 0.05);
+});
+
+document.getElementById('startBtn').addEventListener('click', async () => {
+  if (!started) {
+    await Tone.start();
+    buildChain();
+    startScope();
+    started = true;
+  }
+  const dm = DRONE_MODES[currentDrone];
+  droneSynth.triggerAttack(dm.drone, Tone.now(), 0.3);
+  droneOn = true;
+  document.getElementById('droneLabel').textContent = 'drone: ' + dm.root;
+  document.getElementById('droneLabel').classList.add('on');
+});
+
+document.getElementById('stopBtn').addEventListener('click', () => {
+  if (!started) return;
+  droneOn = false;
+  droneSynth.triggerRelease('+0.05');
+  melodySynth.releaseAll();
+  document.getElementById('droneLabel').textContent = 'drone: off';
+  document.getElementById('droneLabel').classList.remove('on');
+});
+
+// ============================================================
+// OSCILLOSCOPE
+// ============================================================
+function startScope() {
+  const canvas = document.getElementById('scope');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  function draw() {
+    scopeRAF = requestAnimationFrame(draw);
+    const data = scopeAnalyser.getValue();
+    ctx.fillStyle = 'rgba(20, 17, 26, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(58, 50, 68, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+    const dm = DRONE_MODES[currentDrone];
+    ctx.strokeStyle = dm.color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = dm.color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const step = W / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const x = i * step;
+      const y = H/2 + data[i] * (H/2) * 0.9;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  draw();
+}
+
+// ============================================================
+// MODULE PROGRESS
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-modes';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const progress = loadProgress();
+const completeBtn = document.getElementById('markComplete');
+const banner = document.getElementById('completeBanner');
+
+if (progress.lesson2 === 'complete') {
+  completeBtn.textContent = 'Lesson 2 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+}
+
+completeBtn.addEventListener('click', () => {
+  if (progress.lesson2 === 'complete') return;
+  progress.lesson2 = 'complete';
+  progress.lesson2CompletedAt = new Date().toISOString();
+  saveProgress(progress);
+  completeBtn.textContent = 'Lesson 2 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderScale();
+</script>
+</body>
+</html>

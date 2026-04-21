@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — The Transformation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.5;
+    max-width: 1200px; margin: 0 auto;
+  }
+  nav a:hover { color: var(--accent) !important; }
+
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  .transport { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button { font-family: inherit; font-size: 13px; padding: 10px 20px; border: 1px solid var(--grid);
+           background: var(--panel); color: var(--ink); border-radius: 4px; cursor: pointer; }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  .now-playing { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .now-playing .lbl { color: var(--warm); }
+
+  .transform-stack { display: flex; flex-direction: column; gap: 10px; }
+  .tx-row {
+    display: grid; grid-template-columns: 60px 1fr 30px; gap: 14px;
+    padding: 14px; border: 1px solid var(--grid); border-radius: 4px;
+    background: #1f1a28; transition: all 0.2s;
+    align-items: center;
+  }
+  .tx-row.active { border-color: var(--warm); background: #302438; box-shadow: 0 0 20px rgba(212,163,115,0.15); }
+  .tx-row.queued { outline: 2px dashed var(--accent); outline-offset: -2px; }
+  .tx-row .toggle {
+    width: 44px; height: 24px; border: 1px solid var(--grid);
+    border-radius: 12px; position: relative; cursor: pointer;
+    background: #14111a;
+    transition: all 0.15s;
+  }
+  .tx-row.active .toggle { background: var(--warm); border-color: var(--warm); }
+  .tx-row .toggle::after {
+    content: ''; position: absolute; top: 2px; left: 3px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--muted); transition: all 0.15s;
+  }
+  .tx-row.active .toggle::after { left: 21px; background: var(--bg); }
+  .tx-row .label { color: var(--ink); font-size: 14px; }
+  .tx-row.active .label { color: var(--warm); }
+  .tx-row .blurb { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .tx-row .blurb code { background: #14111a; padding: 1px 5px; border-radius: 3px; color: var(--warm); font-size: 11px; }
+  .tx-row .hotkey { color: var(--accent); font-size: 11px; text-align: right; opacity: 0.7; }
+  @media (max-width: 600px) { .tx-row { grid-template-columns: 44px 1fr; } .tx-row .hotkey { display: none; } }
+
+  .chord-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 600px) { .chord-row { grid-template-columns: repeat(2, 1fr); } }
+  .chord {
+    padding: 14px; border: 1px solid var(--grid); border-radius: 4px;
+    background: #1f1a28; transition: all 0.15s;
+  }
+  .chord.active { border-color: var(--warm); background: #302438; box-shadow: 0 0 20px rgba(212,163,115,0.2); }
+  .chord .numeral { font-size: 20px; color: var(--warm); }
+  .chord .name { font-size: 13px; color: var(--ink); margin: 4px 0; }
+  .chord .notes { font-size: 11px; color: var(--muted); }
+  .chord.changed { border-color: var(--accent); }
+  .chord.changed .numeral { color: var(--accent); }
+
+  .why { font-size: 13px; color: var(--ink); }
+  .why code { background: #14111a; padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+
+  .complete-btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 16px; }
+  .complete-btn:hover { background: var(--green); color: var(--bg); }
+  .complete-btn.done { background: var(--green); color: var(--bg); border-color: var(--green); cursor: default; }
+</style>
+</head>
+<body>
+
+<nav style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding:10px 14px; background:#241e2d; border:1px solid #3a3244; border-radius:6px; font-size:12px; color:#8a7f92;">
+  <a href="02-swapper.html" style="color:#d4a373; text-decoration:none;">← Lesson 2: The Progression Swapper</a>
+  <span>Lesson 3 of 4 — The Transformation</span>
+  <a href="04-quiz.html" style="color:#d4a373; text-decoration:none;">Next: Snap Quiz →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, #302438, #241e2d); border:1px solid #d4a373; border-radius:6px; padding:14px 18px; margin-bottom:20px; color:#d4a373; font-size:13px;">
+  ✓ Lesson 3 marked complete. <a href="index.html" style="color:#c17a9c;">Back to module →</a>
+</div>
+
+<h1>~ The Transformation ~</h1>
+<p class="sub">Start with <code style="background:#14111a;padding:2px 6px;border-radius:3px;color:#d4a373;">I–V–vi–IV</code>. Toggle a transform. Hear what changes. Stack them and watch the progression mutate.</p>
+
+<div class="panel" style="padding: 12px;">
+  <canvas id="scope" width="1200" height="140" style="width:100%; height:140px; display:block; background:#14111a; border-radius:4px;"></canvas>
+</div>
+
+<div class="panel">
+  <div class="transport">
+    <button id="play" class="primary">▶ play</button>
+    <button id="stop">■ stop</button>
+    <span style="color: var(--muted); margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px;">
+      <label for="vol" style="color: var(--muted);">vol</label>
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" style="width: 80px; accent-color: #d4a373;">
+      <span style="width: 28px; text-align: right;" id="volVal">80%</span>
+    </span>
+    <span class="now-playing"><span id="txCount" class="lbl">0</span> transforms active · 80 BPM</span>
+  </div>
+</div>
+
+<h2>Transformation Stack</h2>
+<div class="panel">
+  <div class="transform-stack" id="txStack"></div>
+  <div style="margin-top:12px; color: var(--muted); font-size: 11px;">Tip: press <span style="color:var(--warm);">Space</span> to play/stop · press <span style="color:var(--warm);">1–5</span> to toggle transforms · changes land on the next downbeat during playback.</div>
+</div>
+
+<h2>Current Progression</h2>
+<div class="panel">
+  <div class="chord-row" id="chords"></div>
+  <div style="margin-top:10px; font-size:11px; color: var(--muted);">Chords tinted <span style="color: var(--accent);">pink</span> have been changed by an active transform.</div>
+</div>
+
+<h2>Why This Matters</h2>
+<div class="panel why" id="why">Plain <code>I–V–vi–IV</code>. The pop skeleton. Everything below is a transformation on top of this foundation.</div>
+
+<div class="panel">
+  <p style="color: var(--muted); font-size: 12px; margin: 0;">When you can hear how each transform mutates the base — and how they compose:</p>
+  <button id="markComplete" class="complete-btn">Mark Lesson 3 Complete ✓</button>
+</div>
+
+<script>
+// ============================================================
+// THE BASE PROGRESSION — everything transforms on top of this
+// ============================================================
+const BASE = [
+  { numeral: 'I',   name: 'C',   notes: ['C3','E3','G3','C4'], bass: 'C2' },
+  { numeral: 'V',   name: 'G',   notes: ['G2','B2','D3','G3'], bass: 'G1' },
+  { numeral: 'vi',  name: 'Am',  notes: ['A2','C3','E3','A3'], bass: 'A1' },
+  { numeral: 'IV',  name: 'F',   notes: ['F2','A2','C3','F3'], bass: 'F1' },
+];
+
+// ============================================================
+// THE FIVE TRANSFORMS — pure functions (base, activeSet) -> new chords
+// They're applied in this declared ORDER so 7ths influence later ones.
+// ============================================================
+const TRANSFORMS = {
+  'add7ths': {
+    label: 'Add 7ths (jazz it up)',
+    blurb: `Stacks a 7th on every chord: <code>C→Cmaj7</code>, <code>G→G7</code>, <code>Am→Am7</code>, <code>F→Fmaj7</code>. Same roots, but each chord now has a note that <em>wants</em> to move. This is the single biggest difference between pop and jazz voicings.`,
+    fn: (chords) => {
+      const replacements = [
+        { numeral: 'Imaj7',   name: 'Cmaj7', notes: ['C3','E3','G3','B3'],  bass: 'C2' },
+        { numeral: 'V7',      name: 'G7',    notes: ['G2','B2','D3','F3'],  bass: 'G1' },
+        { numeral: 'vim7',    name: 'Am7',   notes: ['A2','C3','E3','G3'],  bass: 'A1' },
+        { numeral: 'IVmaj7',  name: 'Fmaj7', notes: ['F2','A2','C3','E3'],  bass: 'F1' },
+      ];
+      return chords.map((c, i) => ({ ...replacements[i], _changed: true }));
+    },
+  },
+  'parallelMinor': {
+    label: 'Parallel minor swap (borrow darkness)',
+    blurb: `Replaces the major <code>IV</code> with its parallel-minor cousin (F → Fm). The lowered 6th (Ab) creates sudden shadow. This single note swap is how pop songs achieve "the sad moment" — it's in the Beatles, Radiohead, and every 90s indie ballad.`,
+    fn: (chords) => chords.map((c, i) => i === 3
+      ? { numeral: 'iv', name: 'Fm', notes: ['F2','Ab2','C3','F3'], bass: 'F1', _changed: true }
+      : c),
+  },
+  'tritoneSub': {
+    label: 'Tritone sub on V (jazz wildcard)',
+    blurb: `Replaces <code>G7</code> (V) with <code>Db7</code> — the chord a tritone away. It resolves to C the same way G7 does, because Db7 and G7 share the same tritone (F and B). Adds chromatic sophistication — this is the Steely Dan / bebop move.`,
+    fn: (chords) => chords.map((c, i) => {
+      if (i !== 1) return c;
+      // If 7ths active, chord at index 1 already has a 4th note. Preserve 7 character.
+      const has7 = c.notes.length === 4 && c.numeral.includes('7');
+      return has7
+        ? { numeral: 'bII7', name: 'Db7', notes: ['Db3','F3','Ab3','Cb4'], bass: 'Db2', _changed: true }
+        : { numeral: 'bII',  name: 'Db',  notes: ['Db3','F3','Ab3','Db4'], bass: 'Db2', _changed: true };
+    }),
+  },
+  'relMinor': {
+    label: 'Relative minor on the I',
+    blurb: `Replaces the <code>C</code> (I) with <code>Am</code> (vi). Same notes as C major's scale — just starting on the 6th degree. This single swap shifts the entire center of gravity: the progression still loops, but now it feels like it lives in a minor world.`,
+    fn: (chords) => chords.map((c, i) => {
+      if (i !== 0) return c;
+      const has7 = c.notes.length === 4 && c.numeral.includes('7');
+      return has7
+        ? { numeral: 'vim7', name: 'Am7', notes: ['A2','C3','E3','G3'], bass: 'A1', _changed: true }
+        : { numeral: 'vi',   name: 'Am',  notes: ['A2','C3','E3','A3'], bass: 'A1', _changed: true };
+    }),
+  },
+  'deceptiveCadence': {
+    label: 'Deceptive cadence (the fake-out)',
+    blurb: `Replaces the final <code>IV</code> with a <code>bVII</code> (Bb) — moving <em>out</em> of the key for one bar before looping back to I. This is the "oh!" moment in film scores. It surprises the ear because the listener is predicting a smooth return to I.`,
+    fn: (chords) => chords.map((c, i) => {
+      if (i !== 3) return c;
+      const has7 = c.notes.length === 4 && c.numeral.includes('7');
+      return has7
+        ? { numeral: 'bVII7', name: 'Bb7', notes: ['Bb2','D3','F3','Ab3'], bass: 'Bb1', _changed: true }
+        : { numeral: 'bVII',  name: 'Bb',  notes: ['Bb2','D3','F3','Bb3'], bass: 'Bb1', _changed: true };
+    }),
+  },
+};
+const ORDER = ['add7ths', 'parallelMinor', 'tritoneSub', 'relMinor', 'deceptiveCadence'];
+
+// ============================================================
+// STATE
+// ============================================================
+const active = new Set();        // which transforms are currently applied
+let queued = null;               // {add:[], remove:[]} waiting for next downbeat
+let currentChords = applyTransforms(BASE, active);
+
+function applyTransforms(base, activeSet) {
+  let chords = base.map(c => ({ ...c, notes: [...c.notes], _changed: false }));
+  for (const id of ORDER) {
+    if (activeSet.has(id)) chords = TRANSFORMS[id].fn(chords);
+  }
+  return chords;
+}
+
+// ============================================================
+// RENDER the toggle rows
+// ============================================================
+const stackEl = document.getElementById('txStack');
+ORDER.forEach((id, i) => {
+  const t = TRANSFORMS[id];
+  const row = document.createElement('div');
+  row.className = 'tx-row';
+  row.dataset.id = id;
+  row.innerHTML = `
+    <div class="toggle"></div>
+    <div>
+      <div class="label">${t.label}</div>
+      <div class="blurb">${t.blurb}</div>
+    </div>
+    <div class="hotkey">[${i+1}]</div>
+  `;
+  row.addEventListener('click', () => toggleTransform(id));
+  stackEl.appendChild(row);
+});
+
+function renderChords() {
+  const el = document.getElementById('chords');
+  el.innerHTML = '';
+  currentChords.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'chord' + (c._changed ? ' changed' : '');
+    div.id = 'chord-' + i;
+    div.innerHTML = `
+      <div class="numeral">${c.numeral}</div>
+      <div class="name">${c.name}</div>
+      <div class="notes">${c.notes.join(' · ')}</div>`;
+    el.appendChild(div);
+  });
+}
+
+function renderWhy() {
+  const n = active.size;
+  const why = document.getElementById('why');
+  if (n === 0) {
+    why.innerHTML = `Plain <code>I–V–vi–IV</code>. The pop skeleton. Everything below is a transformation on top of this foundation.`;
+  } else if (n === 1) {
+    const id = [...active][0];
+    why.innerHTML = TRANSFORMS[id].blurb;
+  } else {
+    const labels = ORDER.filter(id => active.has(id)).map(id => TRANSFORMS[id].label.split(' ')[0]).join(' + ');
+    why.innerHTML = `<strong style="color:var(--warm);">You're stacking ${n} transforms.</strong> (${labels}.) The <code>I–V–vi–IV</code> skeleton is still audible underneath, but the surface has changed. This is how composers evolve progressions without losing the hook.`;
+  }
+  document.getElementById('txCount').textContent = n;
+}
+
+function renderRows() {
+  document.querySelectorAll('.tx-row').forEach(row => {
+    const id = row.dataset.id;
+    row.classList.toggle('active', active.has(id));
+    // queued visual: pending add or remove
+    const isPendingAdd = queued && queued.add.includes(id);
+    const isPendingRemove = queued && queued.remove.includes(id);
+    row.classList.toggle('queued', isPendingAdd || isPendingRemove);
+  });
+}
+
+function toggleTransform(id) {
+  if (!(id in TRANSFORMS)) return;
+  // Queue if playing, apply immediately if stopped
+  if (started && Tone.Transport.state === 'started') {
+    if (!queued) queued = { add: [], remove: [] };
+    if (active.has(id)) {
+      // currently on -> queue remove (unless already queued to add)
+      const addIdx = queued.add.indexOf(id);
+      if (addIdx >= 0) queued.add.splice(addIdx, 1);
+      else if (!queued.remove.includes(id)) queued.remove.push(id);
+    } else {
+      const rmIdx = queued.remove.indexOf(id);
+      if (rmIdx >= 0) queued.remove.splice(rmIdx, 1);
+      else if (!queued.add.includes(id)) queued.add.push(id);
+    }
+    renderRows();
+  } else {
+    if (active.has(id)) active.delete(id); else active.add(id);
+    currentChords = applyTransforms(BASE, active);
+    renderChords();
+    renderWhy();
+    renderRows();
+  }
+}
+
+function applyQueued() {
+  if (!queued) return;
+  queued.add.forEach(id => active.add(id));
+  queued.remove.forEach(id => active.delete(id));
+  queued = null;
+  currentChords = applyTransforms(BASE, active);
+  renderChords();
+  renderWhy();
+  renderRows();
+}
+
+renderChords();
+renderWhy();
+renderRows();
+
+// ============================================================
+// TONE.JS SIGNAL CHAIN (mirrors lessons 1 & 2 — no vinyl crackle)
+// ============================================================
+let started = false;
+let loop, drumLoop, lpFilter, reverb, rhodes, bass, kick, snare, hat;
+let masterGain, scopeAnalyser, scopeRAF;
+
+function buildChain() {
+  Tone.Transport.bpm.value = 80;
+  Tone.Transport.swing = 0.1;
+  Tone.Transport.swingSubdivision = '8n';
+
+  masterGain = new Tone.Gain(0.9).toDestination();
+  scopeAnalyser = new Tone.Analyser('waveform', 1024);
+  masterGain.connect(scopeAnalyser);
+
+  reverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 }).connect(masterGain);
+  lpFilter = new Tone.Filter({ frequency: 2800, type: 'lowpass', rolloff: -24 }).connect(reverb);
+
+  rhodes = new Tone.PolySynth(Tone.FMSynth, {
+    harmonicity: 3.2, modulationIndex: 8,
+    envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.2 },
+    modulationEnvelope: { attack: 0.02, decay: 0.5, sustain: 0.2, release: 0.5 },
+    volume: -14
+  }).connect(lpFilter);
+
+  bass = new Tone.MonoSynth({
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.02, decay: 0.2, sustain: 0.6, release: 0.4 },
+    filter: { Q: 1, type: 'lowpass', rolloff: -12 },
+    filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.3, baseFrequency: 300, octaves: 2 },
+    volume: -10
+  }).connect(lpFilter);
+
+  kick  = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, envelope: { attack: 0.001, decay: 0.4, sustain: 0 }, volume: -8 }).connect(lpFilter);
+  snare = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 }, volume: -20 }).connect(lpFilter);
+  hat   = new Tone.MetalSynth({ frequency: 200, envelope: { attack: 0.001, decay: 0.05, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -32 }).connect(lpFilter);
+
+  // ============================================================
+  // THE LOOP — 4 bars per cycle. At the top of each cycle we honor
+  // any queued transform changes so they land on the downbeat.
+  // ============================================================
+  let bar = 0;
+  loop = new Tone.Loop((time) => {
+    const idx = bar % 4;
+    if (idx === 0 && queued) {
+      // Apply audio-side immediately (scheduler needs the new chords right now).
+      const pending = queued;
+      queued = null;
+      pending.add.forEach(id => active.add(id));
+      pending.remove.forEach(id => active.delete(id));
+      currentChords = applyTransforms(BASE, active);
+      // And schedule the UI update on the paint for this downbeat.
+      Tone.Draw.schedule(() => {
+        renderChords();
+        renderWhy();
+        renderRows();
+      }, time);
+    }
+    const chord = currentChords[idx];
+    playBar(chord, time);
+    Tone.Draw.schedule(() => highlight(idx), time);
+    bar++;
+  }, '1m').start(0);
+
+  drumLoop = new Tone.Loop((time) => {
+    kick.triggerAttackRelease('C1', '8n', time);
+    kick.triggerAttackRelease('C1', '8n', time + Tone.Time('2n').toSeconds() + Tone.Time('8n').toSeconds());
+    snare.triggerAttackRelease('8n', time + Tone.Time('4n').toSeconds());
+    snare.triggerAttackRelease('8n', time + Tone.Time('2n').toSeconds() + Tone.Time('4n').toSeconds());
+    for (let i = 0; i < 8; i++) {
+      if (i % 2 === 1) hat.triggerAttackRelease('32n', time + i * Tone.Time('8n').toSeconds(), 0.3);
+    }
+  }, '1m').start(0);
+}
+
+function playBar(chord, time) {
+  rhodes.triggerAttackRelease(chord.notes, '2n', time, 0.55);
+  rhodes.triggerAttackRelease(chord.notes, '2n', time + Tone.Time('2n').toSeconds(), 0.45);
+  bass.triggerAttackRelease(chord.bass, '4n', time, 0.7);
+  bass.triggerAttackRelease(chord.bass, '4n', time + Tone.Time('2n').toSeconds(), 0.6);
+}
+
+function highlight(idx) {
+  document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('chord-' + idx);
+  if (el) el.classList.add('active');
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+document.getElementById('play').addEventListener('click', async () => {
+  if (!started) { await Tone.start(); buildChain(); startScope(); started = true; }
+  Tone.Transport.start();
+});
+document.getElementById('stop').addEventListener('click', stopAll);
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (masterGain) masterGain.gain.rampTo(v, 0.05);
+});
+
+function stopAll() {
+  Tone.Transport.stop();
+  if (rhodes) rhodes.releaseAll();
+  if (bass) bass.triggerRelease();
+  document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (started && Tone.Transport.state === 'started') stopAll();
+    else document.getElementById('play').click();
+  } else if (/^Digit[1-5]$/.test(e.code)) {
+    const i = parseInt(e.code.slice(5), 10) - 1;
+    if (ORDER[i]) toggleTransform(ORDER[i]);
+  }
+});
+
+// ============================================================
+// OSCILLOSCOPE — CRT-style phosphor fade
+// ============================================================
+function startScope() {
+  const canvas = document.getElementById('scope');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  function draw() {
+    scopeRAF = requestAnimationFrame(draw);
+    const data = scopeAnalyser.getValue();
+    ctx.fillStyle = 'rgba(20, 17, 26, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(58, 50, 68, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+    ctx.strokeStyle = '#d4a373';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(212, 163, 115, 0.7)';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const step = W / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const x = i * step;
+      const y = H/2 + data[i] * (H/2) * 0.9;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  draw();
+}
+
+// ============================================================
+// MODULE PROGRESS — localStorage
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-chord-progressions';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const progress = loadProgress();
+const completeBtn = document.getElementById('markComplete');
+const banner = document.getElementById('completeBanner');
+
+if (progress.lesson3 === 'complete') {
+  completeBtn.textContent = 'Lesson 3 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+}
+
+completeBtn.addEventListener('click', () => {
+  if (progress.lesson3 === 'complete') return;
+  progress.lesson3 = 'complete';
+  progress.lesson3CompletedAt = new Date().toISOString();
+  saveProgress(progress);
+  completeBtn.textContent = 'Lesson 3 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+</script>
+</body>
+</html>

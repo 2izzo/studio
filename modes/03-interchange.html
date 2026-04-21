@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — The Modal Interchange Tease</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.5;
+    max-width: 1200px; margin: 0 auto;
+  }
+  nav a:hover { color: #c17a9c !important; }
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button { font-family: inherit; font-size: 13px; padding: 10px 20px; border: 1px solid var(--grid);
+           background: var(--panel); color: var(--ink); border-radius: 4px; cursor: pointer; }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  .complete-btn { background: transparent; border: 1px solid #8fb99c; color: #8fb99c; padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: #8fb99c; color: #1a1620; }
+  .complete-btn.done { background: #8fb99c; color: #1a1620; border-color: #8fb99c; cursor: default; }
+
+  .transport { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+
+  /* CHORD DISPLAY */
+  .chord-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+  .chord {
+    padding: 14px; border: 1px solid var(--grid); border-radius: 4px;
+    background: #1f1a28; transition: all 0.25s; text-align: center;
+  }
+  .chord.active { border-color: var(--warm); background: #302438; box-shadow: 0 0 20px rgba(212,163,115,0.2); }
+  .chord.borrowed { border-color: var(--accent); }
+  .chord.borrowed.active { border-color: var(--accent); background: #30202e; box-shadow: 0 0 20px rgba(193,122,156,0.3); }
+  .chord .numeral { font-size: 22px; color: var(--warm); }
+  .chord.borrowed .numeral { color: var(--accent); }
+  .chord .name { font-size: 14px; color: var(--ink); margin: 4px 0; }
+  .chord .notes-label { font-size: 11px; color: var(--muted); }
+  .chord .source { font-size: 9px; color: var(--accent); margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* TOGGLE SWITCHES */
+  .toggle-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; justify-content: center; }
+  .toggle-btn {
+    padding: 10px 18px; border: 1px solid var(--grid); border-radius: 20px;
+    background: #1f1a28; color: var(--muted); cursor: pointer;
+    font-family: inherit; font-size: 12px;
+    transition: all 0.25s;
+  }
+  .toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .toggle-btn.on { border-color: var(--accent); background: #30202e; color: var(--accent); box-shadow: 0 0 12px rgba(193,122,156,0.2); }
+
+  /* EXAMPLE SONGS */
+  .example-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
+  @media (max-width: 700px) { .example-row { grid-template-columns: 1fr; } }
+  .example {
+    padding: 14px; border: 1px solid var(--grid); border-radius: 4px;
+    background: #1f1a28; cursor: pointer; transition: all 0.2s;
+  }
+  .example:hover { border-color: var(--warm); }
+  .example.playing { border-color: var(--warm); background: #302438; }
+  .example .song-title { font-size: 14px; color: var(--ink); }
+  .example .song-artist { font-size: 11px; color: var(--muted); }
+  .example .song-prog { font-size: 12px; color: var(--warm); margin-top: 6px; }
+  .example .borrowed-label { font-size: 10px; color: var(--accent); margin-top: 4px; }
+
+  .bpm-label { color: var(--muted); margin-left: auto; font-size: 12px; }
+
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 8px 0; }
+  .math code { background: #14111a; padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+</style>
+</head>
+<body>
+
+<nav style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding:10px 14px; background:#241e2d; border:1px solid #3a3244; border-radius:6px; font-size:12px; color:#8a7f92;">
+  <a href="index.html" style="color:#d4a373; text-decoration:none;">← Module: Modes</a>
+  <span>Lesson 3 of 4 — Modal Interchange Tease</span>
+  <a href="04-quiz.html" style="color:#d4a373; text-decoration:none;">Next: Snap Quiz →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, #302438, #241e2d); border:1px solid #d4a373; border-radius:6px; padding:14px 18px; margin-bottom:20px; color:#d4a373; font-size:13px;">
+  ✓ Lesson 3 marked complete. <a href="index.html" style="color:#c17a9c;">Back to module →</a>
+</div>
+
+<h1>~ The Modal Interchange Tease ~</h1>
+<p class="sub">You're in C major. Everything is bright, resolved. Now borrow one chord from C minor. Just one. Hear the universe shift.</p>
+
+<!-- Oscilloscope -->
+<div class="panel" style="padding: 12px;">
+  <canvas id="scope" width="1200" height="120" style="width:100%; height:120px; display:block; background:#14111a; border-radius:4px;"></canvas>
+</div>
+
+<!-- Transport -->
+<div class="panel">
+  <div class="transport">
+    <button id="playBtn" class="primary">▶ play</button>
+    <button id="stopBtn">■ stop</button>
+    <span style="color: var(--muted); display: flex; align-items: center; gap: 8px; font-size: 12px; margin-left: auto;">
+      <label for="vol" style="color: var(--muted);">vol</label>
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" style="width: 80px; accent-color: #d4a373;">
+      <span style="width: 28px; text-align: right;" id="volVal">80%</span>
+      <span style="margin-left: 8px;">80 BPM</span>
+    </span>
+  </div>
+</div>
+
+<!-- The Progression + Toggles -->
+<h2>The Progression (C major: I – V – vi – IV)</h2>
+<div class="panel">
+  <div class="chord-row" id="chordRow"></div>
+  <div style="text-align: center; margin-top: 16px;">
+    <p style="font-size: 12px; color: var(--muted);">Click a toggle below to borrow a chord from C minor (Aeolian). The borrowed chord replaces its diatonic counterpart.</p>
+  </div>
+  <div class="toggle-row" id="toggleRow"></div>
+</div>
+
+<!-- Famous Examples -->
+<h2>You've Heard This Before</h2>
+<div class="panel">
+  <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Click to hear each progression. The <span style="color: var(--accent);">pink chord</span> is borrowed.</p>
+  <div class="example-row" id="exampleRow"></div>
+</div>
+
+<!-- The Why -->
+<h2>Why This Works</h2>
+<div class="panel math">
+  <p><strong style="color: var(--warm);">1. Major and minor are parallel universes.</strong> C major has the notes <code>C D E F G A B</code>. C minor has <code>C D E♭ F G A♭ B♭</code>. Three notes are different. When you "borrow" a chord from C minor, you're smuggling one of those altered notes into a major context — a brief glimpse of the parallel universe.</p>
+
+  <p><strong style="color: var(--warm);">2. One note is enough.</strong> The difference between <code>F major (IV)</code> and <code>F minor (iv)</code> is a single note: A becomes A♭. That's it. But that half-step drops the whole emotional temperature of the progression. Your ear was expecting brightness; it got a shadow. The contrast is what makes it hit.</p>
+
+  <p><strong style="color: var(--warm);">3. This is everywhere.</strong> "Creep" by Radiohead: the <code>III</code> chord (E major in a G-minor context, but the effect is borrowed). "Let It Be": the <code>♭VII</code>. "Space Oddity" by Bowie: <code>iv</code> in a major key. Every songwriter who's ever written a chord that makes you go "oh, <em>that</em> one" — they probably borrowed it.</p>
+
+  <p style="color: var(--muted);">Try toggling <code>iv</code> on and off during playback. Listen for the exact beat where the mood drops — that's the A♭ landing. One note. One universe.</p>
+
+  <hr style="border:none; border-top:1px solid var(--grid); margin:20px 0;">
+  <p style="color: var(--muted); font-size: 12px; margin-bottom: 8px;">When you can hear the borrowed chord land and feel why it works — when you can toggle it on and off and name what changed:</p>
+  <button id="markComplete" class="complete-btn">Mark Lesson 3 Complete ✓</button>
+</div>
+
+<script>
+// ============================================================
+// PROGRESSION DATA
+// ============================================================
+
+// Base progression: I – V – vi – IV in C major
+const BASE_PROG = [
+  { numeral: 'I',   name: 'C',   notes: ['C3','E3','G3'],  source: 'diatonic' },
+  { numeral: 'V',   name: 'G',   notes: ['G2','B3','D4'],  source: 'diatonic' },
+  { numeral: 'vi',  name: 'Am',  notes: ['A2','C3','E3'],  source: 'diatonic' },
+  { numeral: 'IV',  name: 'F',   notes: ['F3','A3','C4'],  source: 'diatonic' },
+];
+
+// Borrowed alternatives from C minor (Aeolian)
+const BORROWS = {
+  'iv':   { numeral: 'iv',   name: 'Fm',   notes: ['F3','Ab3','C4'],  source: 'from C minor', replaces: 3 },
+  '♭VII': { numeral: '♭VII', name: 'B♭',   notes: ['Bb2','D3','F3'], source: 'from C minor', replaces: 1 },
+  '♭III': { numeral: '♭III', name: 'E♭',   notes: ['Eb3','G3','Bb3'],source: 'from C minor', replaces: -1 }, // doesn't replace — inserts mood
+  '♭VI':  { numeral: '♭VI',  name: 'A♭',   notes: ['Ab2','C3','Eb3'],source: 'from C minor', replaces: 2 },
+};
+
+let activeBorrows = new Set();
+let currentChords = [...BASE_PROG];
+
+// Famous examples
+const EXAMPLES = [
+  {
+    title: '"Creep"', artist: 'Radiohead',
+    prog: [
+      { numeral: 'I',   name: 'G',  notes: ['G3','B3','D4'], source: 'diatonic' },
+      { numeral: 'III', name: 'B',  notes: ['B3','D#4','F#4'], source: 'borrowed' },
+      { numeral: 'IV',  name: 'C',  notes: ['C3','E3','G3'], source: 'diatonic' },
+      { numeral: 'iv',  name: 'Cm', notes: ['C3','Eb3','G3'], source: 'borrowed' },
+    ],
+    borrowNote: 'III and iv borrowed — E♭ from parallel minor',
+    bpm: 80
+  },
+  {
+    title: '"Space Oddity"', artist: 'David Bowie',
+    prog: [
+      { numeral: 'I',   name: 'C',  notes: ['C3','E3','G3'], source: 'diatonic' },
+      { numeral: 'V',   name: 'G',  notes: ['G2','B3','D4'], source: 'diatonic' },
+      { numeral: 'IV',  name: 'F',  notes: ['F3','A3','C4'], source: 'diatonic' },
+      { numeral: 'iv',  name: 'Fm', notes: ['F3','Ab3','C4'], source: 'borrowed' },
+    ],
+    borrowNote: 'iv borrowed — A♭ from C minor',
+    bpm: 72
+  },
+  {
+    title: '"No Woman No Cry"', artist: 'Bob Marley',
+    prog: [
+      { numeral: 'I',    name: 'C',  notes: ['C3','E3','G3'], source: 'diatonic' },
+      { numeral: 'V',    name: 'G',  notes: ['G2','B3','D4'], source: 'diatonic' },
+      { numeral: 'vi',   name: 'Am', notes: ['A2','C3','E3'], source: 'diatonic' },
+      { numeral: 'IV',   name: 'F',  notes: ['F3','A3','C4'], source: 'diatonic' },
+    ],
+    borrowNote: 'No borrows — pure diatonic for comparison',
+    bpm: 76
+  },
+  {
+    title: '"Life on Mars?"', artist: 'David Bowie',
+    prog: [
+      { numeral: 'I',    name: 'F',  notes: ['F3','A3','C4'], source: 'diatonic' },
+      { numeral: 'iv',   name: 'Fm', notes: ['F3','Ab3','C4'], source: 'borrowed' },
+      { numeral: 'vi',   name: 'Dm', notes: ['D3','F3','A3'], source: 'diatonic' },
+      { numeral: '♭VII', name: 'E♭', notes: ['Eb3','G3','Bb3'], source: 'borrowed' },
+    ],
+    borrowNote: 'iv and ♭VII — heavy borrowing, chromatic drama',
+    bpm: 68
+  },
+];
+
+let started = false;
+let playing = false;
+let playingExample = -1;
+let bar = 0;
+
+// Tone.js
+let rhodes, bass, reverb, masterGain, scopeAnalyser, lpFilter, mainLoop;
+let scopeRAF;
+
+// ============================================================
+// BUILD CHAIN
+// ============================================================
+function buildChain() {
+  masterGain = new Tone.Gain(1).toDestination();
+  scopeAnalyser = new Tone.Analyser('waveform', 1024);
+  masterGain.connect(scopeAnalyser);
+
+  reverb = new Tone.Reverb({ decay: 3.5, wet: 0.3 }).connect(masterGain);
+  lpFilter = new Tone.Filter({ frequency: 3000, type: 'lowpass', rolloff: -24 }).connect(reverb);
+
+  rhodes = new Tone.PolySynth(Tone.FMSynth, {
+    harmonicity: 3.2, modulationIndex: 8,
+    envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.2 },
+    modulationEnvelope: { attack: 0.02, decay: 0.5, sustain: 0.2, release: 0.5 },
+    volume: -12
+  }).connect(lpFilter);
+
+  bass = new Tone.MonoSynth({
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.02, decay: 0.2, sustain: 0.6, release: 0.4 },
+    filter: { Q: 1, type: 'lowpass', rolloff: -12 },
+    filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.3, baseFrequency: 300, octaves: 2 },
+    volume: -8
+  }).connect(lpFilter);
+}
+
+// ============================================================
+// RENDER CHORD CARDS
+// ============================================================
+const chordRow = document.getElementById('chordRow');
+function renderChords() {
+  chordRow.innerHTML = '';
+  currentChords.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'chord';
+    div.id = 'chord-' + i;
+    if (c.source !== 'diatonic') div.classList.add('borrowed');
+    div.innerHTML = `
+      <div class="numeral">${c.numeral}</div>
+      <div class="name">${c.name}</div>
+      <div class="notes-label">${c.notes.join(' · ')}</div>
+      ${c.source !== 'diatonic' ? '<div class="source">' + c.source + '</div>' : ''}`;
+    chordRow.appendChild(div);
+  });
+}
+
+// ============================================================
+// RENDER TOGGLE BUTTONS
+// ============================================================
+const toggleRow = document.getElementById('toggleRow');
+Object.entries(BORROWS).forEach(([key, b]) => {
+  const btn = document.createElement('button');
+  btn.className = 'toggle-btn';
+  btn.textContent = `${b.numeral} (${b.name})`;
+  btn.dataset.key = key;
+  btn.addEventListener('click', () => toggleBorrow(key, btn));
+  toggleRow.appendChild(btn);
+});
+
+function toggleBorrow(key, btn) {
+  const b = BORROWS[key];
+  if (activeBorrows.has(key)) {
+    activeBorrows.delete(key);
+    btn.classList.remove('on');
+  } else {
+    activeBorrows.add(key);
+    btn.classList.add('on');
+  }
+  rebuildProgression();
+}
+
+function rebuildProgression() {
+  currentChords = [...BASE_PROG];
+  // Apply borrows — each replaces a specific slot
+  if (activeBorrows.has('iv'))   currentChords[3] = BORROWS['iv'];
+  if (activeBorrows.has('♭VII')) currentChords[1] = BORROWS['♭VII'];
+  if (activeBorrows.has('♭VI'))  currentChords[2] = BORROWS['♭VI'];
+  // ♭III is special — let's replace chord 1 (V) for dramatic effect
+  if (activeBorrows.has('♭III')) currentChords[1] = BORROWS['♭III'];
+  renderChords();
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+function startMainLoop() {
+  Tone.Transport.bpm.value = 80;
+  bar = 0;
+  mainLoop = new Tone.Loop((time) => {
+    const idx = bar % currentChords.length;
+    const chord = currentChords[idx];
+
+    Tone.Draw.schedule(() => {
+      document.querySelectorAll('#chordRow .chord').forEach(el => el.classList.remove('active'));
+      const el = document.getElementById('chord-' + idx);
+      if (el) el.classList.add('active');
+    }, time);
+
+    rhodes.triggerAttackRelease(chord.notes, '2n', time, 0.5);
+    // Bass plays root
+    const rootNote = chord.notes[0];
+    bass.triggerAttackRelease(rootNote, '2n', time, 0.7);
+
+    bar++;
+  }, '1m').start(0);
+}
+
+// ============================================================
+// EXAMPLE PLAYBACK
+// ============================================================
+const exampleRow = document.getElementById('exampleRow');
+EXAMPLES.forEach((ex, i) => {
+  const div = document.createElement('div');
+  div.className = 'example';
+  div.id = 'example-' + i;
+  div.innerHTML = `
+    <div class="song-title">${ex.title}</div>
+    <div class="song-artist">${ex.artist}</div>
+    <div class="song-prog">${ex.prog.map(c => c.numeral).join(' – ')}</div>
+    <div class="borrowed-label">${ex.borrowNote}</div>`;
+  div.addEventListener('click', () => playExample(i));
+  exampleRow.appendChild(div);
+});
+
+async function playExample(idx) {
+  // Auto-init audio if user clicks an example before hitting play
+  if (!started) {
+    await Tone.start();
+    buildChain();
+    startScope();
+    started = true;
+  }
+
+  // Stop main loop if playing
+  if (playing) {
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    playing = false;
+  }
+
+  // Toggle off if same example
+  if (playingExample === idx) {
+    rhodes.releaseAll();
+    document.querySelectorAll('.example').forEach(el => el.classList.remove('playing'));
+    document.querySelectorAll('#chordRow .chord').forEach(el => el.classList.remove('active'));
+    playingExample = -1;
+    return;
+  }
+
+  playingExample = idx;
+  document.querySelectorAll('.example').forEach(el => el.classList.remove('playing'));
+  document.getElementById('example-' + idx).classList.add('playing');
+
+  const ex = EXAMPLES[idx];
+  Tone.Transport.bpm.value = ex.bpm;
+  let exBar = 0;
+
+  const exLoop = new Tone.Loop((time) => {
+    const ci = exBar % ex.prog.length;
+    const chord = ex.prog[ci];
+
+    Tone.Draw.schedule(() => {
+      document.querySelectorAll('.example').forEach(el => el.classList.remove('playing'));
+      document.getElementById('example-' + idx).classList.add('playing');
+    }, time);
+
+    rhodes.triggerAttackRelease(chord.notes, '2n', time, 0.5);
+    bass.triggerAttackRelease(chord.notes[0], '2n', time, 0.7);
+
+    exBar++;
+  }, '1m').start(0);
+
+  Tone.Transport.start();
+}
+
+// ============================================================
+// TRANSPORT
+// ============================================================
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (masterGain) masterGain.gain.rampTo(v, 0.05);
+});
+
+document.getElementById('playBtn').addEventListener('click', async () => {
+  if (!started) {
+    await Tone.start();
+    buildChain();
+    startScope();
+    started = true;
+  }
+
+  // Stop example if playing
+  if (playingExample >= 0) {
+    playingExample = -1;
+    document.querySelectorAll('.example').forEach(el => el.classList.remove('playing'));
+  }
+
+  Tone.Transport.stop();
+  Tone.Transport.cancel();
+  rhodes.releaseAll();
+
+  startMainLoop();
+  Tone.Transport.start();
+  playing = true;
+});
+
+document.getElementById('stopBtn').addEventListener('click', () => {
+  if (!started) return;
+  Tone.Transport.stop();
+  Tone.Transport.cancel();
+  playing = false;
+  playingExample = -1;
+  if (rhodes) rhodes.releaseAll();
+  document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.example').forEach(el => el.classList.remove('playing'));
+});
+
+// ============================================================
+// OSCILLOSCOPE
+// ============================================================
+function startScope() {
+  const canvas = document.getElementById('scope');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  function draw() {
+    scopeRAF = requestAnimationFrame(draw);
+    const data = scopeAnalyser.getValue();
+    ctx.fillStyle = 'rgba(20, 17, 26, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(58, 50, 68, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+    const color = activeBorrows.size > 0 ? '#c17a9c' : '#d4a373';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const step = W / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const x = i * step;
+      const y = H/2 + data[i] * (H/2) * 0.9;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  draw();
+}
+
+// ============================================================
+// MODULE PROGRESS
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-modes';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const progress = loadProgress();
+const completeBtn = document.getElementById('markComplete');
+const banner = document.getElementById('completeBanner');
+
+if (progress.lesson3 === 'complete') {
+  completeBtn.textContent = 'Lesson 3 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+}
+
+completeBtn.addEventListener('click', () => {
+  if (progress.lesson3 === 'complete') return;
+  progress.lesson3 = 'complete';
+  progress.lesson3CompletedAt = new Date().toISOString();
+  saveProgress(progress);
+  completeBtn.textContent = 'Lesson 3 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderChords();
+</script>
+</body>
+</html>

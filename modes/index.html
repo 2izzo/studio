@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Module 2: Modes</title>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --panel-2: #1f1a28;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+    --lock: #4a4252;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    max-width: 1200px; margin: 0 auto;
+  }
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .kicker { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 3px; }
+  h1 { font-weight: 400; font-size: 32px; margin: 4px 0 8px; color: var(--warm); }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; max-width: 680px; }
+  h2 { font-weight: 400; font-size: 12px; margin: 28px 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+
+  /* PROGRESS BAR */
+  .progress-wrap { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 16px 20px; margin-bottom: 24px; }
+  .progress-stats { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .progress-stats strong { color: var(--warm); font-size: 14px; }
+  .progress-bar { background: #14111a; height: 6px; border-radius: 3px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--warm), var(--accent)); height: 100%; transition: width 0.5s ease; }
+
+  /* LAYOUT */
+  .grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  /* LESSON PATH */
+  .path { display: flex; flex-direction: column; gap: 0; position: relative; }
+  .lesson {
+    display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center;
+    padding: 18px 20px;
+    background: var(--panel); border: 1px solid var(--grid); border-radius: 6px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .lesson:not(.locked):hover { border-color: var(--warm); }
+  .lesson.locked { opacity: 0.55; }
+  .lesson.complete { border-color: var(--green); }
+  .lesson.current { border-color: var(--warm); box-shadow: 0 0 24px rgba(212,163,115,0.15); }
+
+  .lesson-num {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--panel-2); border: 2px solid var(--grid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--muted);
+  }
+  .lesson.complete .lesson-num { background: var(--green); color: var(--bg); border-color: var(--green); }
+  .lesson.current .lesson-num { border-color: var(--warm); color: var(--warm); }
+  .lesson.locked .lesson-num::after { content: '🔒'; font-size: 14px; }
+  .lesson.locked .lesson-num { font-size: 0; }
+
+  .lesson-body h3 { margin: 0 0 4px; font-weight: 400; font-size: 16px; color: var(--ink); }
+  .lesson-body p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .lesson-body .tags { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 2px 8px; background: #14111a; border-radius: 10px; color: var(--muted); }
+
+  .lesson-action {
+    padding: 10px 18px; border: 1px solid var(--grid); border-radius: 4px;
+    background: transparent; color: var(--muted); font-family: inherit; font-size: 12px;
+    text-decoration: none; white-space: nowrap;
+  }
+  .lesson:not(.locked) .lesson-action { border-color: var(--warm); color: var(--warm); }
+  .lesson:not(.locked) .lesson-action:hover { background: var(--warm); color: var(--bg); }
+  .lesson.complete .lesson-action { border-color: var(--green); color: var(--green); }
+  .lesson.complete .lesson-action:hover { background: var(--green); color: var(--bg); }
+
+  /* CAPSTONE */
+  .capstone { margin-top: 20px; padding: 24px; background: linear-gradient(135deg, #1f1a28, #241e2d); border: 1px dashed var(--warm); border-radius: 6px; text-align: center; }
+  .capstone.locked { border-color: var(--grid); border-style: dashed; opacity: 0.6; }
+  .capstone h3 { color: var(--warm); margin: 0 0 6px; font-weight: 400; font-size: 18px; }
+  .capstone p { color: var(--muted); margin: 0 0 14px; font-size: 12px; }
+  .capstone-btn {
+    display: inline-block; padding: 12px 28px; border-radius: 4px;
+    background: var(--warm); color: var(--bg); text-decoration: none;
+    font-size: 13px; letter-spacing: 1px;
+  }
+  .capstone-btn:hover { background: var(--accent); color: var(--bg); }
+  .capstone.locked .capstone-btn { background: var(--lock); color: var(--muted); cursor: not-allowed; pointer-events: none; }
+
+  /* SIDEBAR */
+  .sidebar { display: flex; flex-direction: column; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 18px; }
+  .card h4 { margin: 0 0 12px; font-weight: 400; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .skill-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+  .skill-list li { padding: 6px 0; border-bottom: 1px solid var(--grid); color: var(--muted); }
+  .skill-list li:last-child { border-bottom: none; }
+  .skill-list li.unlocked { color: var(--green); }
+  .skill-list li.unlocked::before { content: '✓ '; color: var(--green); }
+  .skill-list li:not(.unlocked)::before { content: '○ '; color: var(--lock); }
+
+  .glossary details { border-bottom: 1px solid var(--grid); padding: 8px 0; }
+  .glossary details:last-child { border-bottom: none; }
+  .glossary summary { cursor: pointer; color: var(--warm); font-size: 12px; list-style: none; }
+  .glossary summary::-webkit-details-marker { display: none; }
+  .glossary summary::before { content: '▸ '; transition: transform 0.2s; display: inline-block; }
+  .glossary details[open] summary::before { content: '▾ '; }
+  .glossary-def { margin-top: 6px; padding: 6px 0 4px 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .glossary-def code { color: var(--warm); background: #14111a; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+  .prereq { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+  .prereq a { color: var(--accent); }
+
+  .reset-link { font-size: 10px; color: var(--lock); text-align: center; display: block; margin-top: 20px; cursor: pointer; }
+  .reset-link:hover { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="kicker">Studio · Module 2</div>
+    <h1>Modes</h1>
+  </div>
+</div>
+<p class="sub">Same seven notes, seven different worlds. Learn to hear how moving the tonal center of a scale transforms its color — from bright Lydian to dark Phrygian — without changing a single note.</p>
+<p class="prereq">Prereq: <a href="../chord-progressions/index.html">Module 1 — Chord Progressions</a> (you need the diatonic ear to hear modal quality)</p>
+
+<div class="progress-wrap">
+  <div class="progress-stats">
+    <span><strong id="completedCount">0</strong> of 4 lessons complete</span>
+    <span id="quizStats">Capstone: not attempted</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+
+<div class="grid">
+  <!-- MAIN — the lesson path -->
+  <div>
+    <h2>The Path</h2>
+
+    <a href="01-seven-rooms.html" class="lesson" id="lesson1" data-lesson="1">
+      <div class="lesson-num">1</div>
+      <div class="lesson-body">
+        <h3>The Seven Rooms</h3>
+        <p>Each mode is a room with its own vibe. A drone holds the tonal center while you play the scale on clickable keys. Hear Dorian vs Phrygian vs Lydian as <em>feelings</em>, not formulas.</p>
+        <div class="tags">
+          <span class="tag">7 modes</span>
+          <span class="tag">drone + melody</span>
+          <span class="tag">characteristic notes</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="02-parent-scale.html" class="lesson" id="lesson2" data-lesson="2">
+      <div class="lesson-num">2</div>
+      <div class="lesson-body">
+        <h3>The Parent Scale Illusion</h3>
+        <p>Same C major notes. Move the drone from C to D to E — Ionian becomes Dorian becomes Phrygian. Same notes, completely different feel. <em>This</em> is the lesson.</p>
+        <div class="tags">
+          <span class="tag">same notes</span>
+          <span class="tag">shifting center</span>
+          <span class="tag">relative modes</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="03-interchange.html" class="lesson" id="lesson3" data-lesson="3">
+      <div class="lesson-num">3</div>
+      <div class="lesson-body">
+        <h3>The Modal Interchange Tease</h3>
+        <p>You're in C major. One click borrows the <code style="color:var(--warm)">iv</code> from C minor. One chord changes the universe. Hear how Radiohead and The Beatles already use this trick.</p>
+        <div class="tags">
+          <span class="tag">borrowed chords</span>
+          <span class="tag">parallel minor</span>
+          <span class="tag">pop examples</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <a href="04-quiz.html" class="lesson" id="lesson4" data-lesson="4">
+      <div class="lesson-num">4</div>
+      <div class="lesson-body">
+        <h3>Snap Quiz — Name That Mode</h3>
+        <p>A drone and a 4-note melody in a random mode, random root. Name the mode. Ten questions, 7/10 passes. Your ear is the only tool.</p>
+        <div class="tags">
+          <span class="tag">ear training</span>
+          <span class="tag">mode ID</span>
+          <span class="tag">score tracking</span>
+        </div>
+      </div>
+      <span class="lesson-action">▶ open</span>
+    </a>
+
+    <div class="capstone" id="capstone">
+      <h3 id="capstoneTitle">✦ Module Capstone</h3>
+      <p id="capstoneText">Complete the first three lessons to unlock the Snap Quiz. Pass it, and this module earns its ✓.</p>
+      <a href="04-quiz.html" class="capstone-btn" id="capstoneBtn">Take the Quiz</a>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <div class="card">
+      <h4>What You Can Do</h4>
+      <ul class="skill-list" id="skillList">
+        <li data-unlock="1">Hear a mode as a vibe, not a formula</li>
+        <li data-unlock="1">Identify characteristic notes that define each mode</li>
+        <li data-unlock="1">Name all seven diatonic modes</li>
+        <li data-unlock="2">Explain how all modes come from the same parent scale</li>
+        <li data-unlock="2">Shift a drone to change a scale's modal quality</li>
+        <li data-unlock="3">Borrow a chord from a parallel mode</li>
+        <li data-unlock="3">Recognize modal interchange in pop music</li>
+        <li data-unlock="4">Identify a mode by ear from a drone + melody</li>
+      </ul>
+    </div>
+
+    <div class="card glossary">
+      <h4>Glossary</h4>
+      <details>
+        <summary>Mode</summary>
+        <div class="glossary-def">A rotation of a scale starting on a different degree. C major starting on D = D Dorian. Same notes, different tonal center, different character.</div>
+      </details>
+      <details>
+        <summary>Drone</summary>
+        <div class="glossary-def">A sustained note that establishes the tonal center. Everything you play on top of a drone gets heard <em>relative to it</em>. The drone is what makes a mode sound like a mode.</div>
+      </details>
+      <details>
+        <summary>Characteristic note</summary>
+        <div class="glossary-def">The one note that most distinguishes a mode from its closest neighbor. Dorian's is the <code>♮6</code> (natural 6th over a minor chord). Lydian's is the <code>♯4</code>.</div>
+      </details>
+      <details>
+        <summary>Ionian</summary>
+        <div class="glossary-def">The "default" major scale. <code>C-D-E-F-G-A-B</code>. Bright, resolved, the sound of "Happy Birthday." Mode 1.</div>
+      </details>
+      <details>
+        <summary>Dorian</summary>
+        <div class="glossary-def">Minor with a raised 6th. <code>D-E-F-G-A-B-C</code>. Smooth, jazzy, not quite sad — the "Billie Jean" vibe. Mode 2.</div>
+      </details>
+      <details>
+        <summary>Phrygian</summary>
+        <div class="glossary-def">Minor with a flat 2nd. <code>E-F-G-A-B-C-D</code>. Dark, Spanish, mysterious — instant flamenco. Mode 3.</div>
+      </details>
+      <details>
+        <summary>Lydian</summary>
+        <div class="glossary-def">Major with a raised 4th. <code>F-G-A-B-C-D-E</code>. Dreamy, floating, sci-fi. The Simpsons theme. Mode 4.</div>
+      </details>
+      <details>
+        <summary>Mixolydian</summary>
+        <div class="glossary-def">Major with a flat 7th. <code>G-A-B-C-D-E-F</code>. Bluesy, rock, confident — "Sweet Home Alabama." Mode 5.</div>
+      </details>
+      <details>
+        <summary>Aeolian</summary>
+        <div class="glossary-def">The natural minor scale. <code>A-B-C-D-E-F-G</code>. Melancholy, dark, introspective. Mode 6.</div>
+      </details>
+      <details>
+        <summary>Locrian</summary>
+        <div class="glossary-def">Diminished — flat 2nd and flat 5th. <code>B-C-D-E-F-G-A</code>. Unstable, tense, rarely used as a key center. Mode 7.</div>
+      </details>
+      <details>
+        <summary>Modal interchange</summary>
+        <div class="glossary-def">Borrowing a chord from a parallel mode. In C major, using <code>Fm</code> (the <code>iv</code> from C minor) instead of <code>F</code> (the <code>IV</code>). One chord, massive mood shift.</div>
+      </details>
+      <details>
+        <summary>Parent scale</summary>
+        <div class="glossary-def">The major scale that contains all seven modes. C major is the parent of D Dorian, E Phrygian, F Lydian, G Mixolydian, A Aeolian, and B Locrian. Same notes, seven perspectives.</div>
+      </details>
+    </div>
+
+    <span class="reset-link" id="resetLink">reset module progress</span>
+  </div>
+</div>
+
+<script>
+const PROGRESS_KEY = 'rizzo-studio-modes';
+const LESSONS = [1, 2, 3, 4];
+
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+function render() {
+  const p = loadProgress();
+  let completed = 0;
+  let firstIncomplete = null;
+
+  LESSONS.forEach(n => {
+    const el = document.getElementById('lesson' + n);
+    el.classList.remove('locked', 'complete', 'current');
+
+    const isComplete = p['lesson' + n] === 'complete';
+    const isUnlocked = true;
+
+    if (isComplete) {
+      completed++;
+      el.classList.add('complete');
+      el.querySelector('.lesson-action').textContent = 'review';
+    } else if (!firstIncomplete) {
+      firstIncomplete = n;
+      el.classList.add('current');
+      el.querySelector('.lesson-action').textContent = '▶ open';
+    } else {
+      el.querySelector('.lesson-action').textContent = '▶ open';
+    }
+  });
+
+  document.getElementById('completedCount').textContent = completed;
+  document.getElementById('progressFill').style.width = (completed / 4 * 100) + '%';
+
+  const gateReady = p.lesson1 === 'complete' && p.lesson2 === 'complete' && p.lesson3 === 'complete';
+  const capstone = document.getElementById('capstone');
+  const capText = document.getElementById('capstoneText');
+  const capTitle = document.getElementById('capstoneTitle');
+  if (p.lesson4 === 'complete') {
+    capstone.classList.remove('locked');
+    capTitle.textContent = '✓ Module Complete';
+    capText.innerHTML = `You passed the Snap Quiz — best: <strong style="color:var(--green)">${p.quizBest || '?'}/10</strong>. Retake anytime to push your score.`;
+    document.getElementById('capstoneBtn').textContent = 'Retake Quiz';
+  } else if (gateReady) {
+    capstone.classList.remove('locked');
+    capText.textContent = 'You\'ve walked all three lessons. The Snap Quiz is unlocked.';
+  } else {
+    capstone.classList.add('locked');
+    const need = LESSONS.slice(0, 3).filter(n => p['lesson' + n] !== 'complete');
+    capText.textContent = `Complete lesson${need.length > 1 ? 's' : ''} ${need.join(', ')} to unlock the Snap Quiz.`;
+  }
+
+  const quizStats = document.getElementById('quizStats');
+  if (p.quizBest != null) {
+    quizStats.textContent = `Capstone best: ${p.quizBest}/10`;
+  }
+
+  document.querySelectorAll('#skillList li').forEach(li => {
+    const requires = parseInt(li.dataset.unlock, 10);
+    if (p['lesson' + requires] === 'complete') li.classList.add('unlocked');
+    else li.classList.remove('unlocked');
+  });
+}
+
+document.getElementById('resetLink').addEventListener('click', () => {
+  if (confirm('Reset module progress? This clears completed lessons and quiz scores.')) {
+    localStorage.removeItem(PROGRESS_KEY);
+    render();
+  }
+});
+
+render();
+window.addEventListener('focus', render);
+</script>
+
+</body>
+</html>

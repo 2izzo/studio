@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — The Seven Rooms</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --green: #8fb99c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.5;
+    max-width: 1200px; margin: 0 auto;
+  }
+  nav a:hover { color: #c17a9c !important; }
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  button { font-family: inherit; font-size: 13px; padding: 10px 20px; border: 1px solid var(--grid);
+           background: var(--panel); color: var(--ink); border-radius: 4px; cursor: pointer; }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  .complete-btn { background: transparent; border: 1px solid #8fb99c; color: #8fb99c; padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: #8fb99c; color: #1a1620; }
+  .complete-btn.done { background: #8fb99c; color: #1a1620; border-color: #8fb99c; cursor: default; }
+
+  /* ROOM SELECTOR — a row of 7 mode buttons */
+  .room-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 16px; }
+  .room-btn {
+    padding: 12px 6px; text-align: center; border: 1px solid var(--grid);
+    border-radius: 4px; background: #1f1a28; cursor: pointer;
+    transition: all 0.25s;
+  }
+  .room-btn:hover { border-color: var(--warm); }
+  .room-btn.active { border-color: var(--warm); background: #302438; box-shadow: 0 0 20px rgba(212,163,115,0.2); }
+  .room-btn .mode-name { font-size: 14px; color: var(--ink); margin-bottom: 2px; }
+  .room-btn .mode-num { font-size: 10px; color: var(--muted); }
+  .room-btn .mode-vibe { font-size: 10px; color: var(--accent); margin-top: 4px; }
+
+  /* KEYBOARD — one octave + 1 of white keys with the mode's notes */
+  .keyboard-wrap { position: relative; height: 180px; margin: 16px 0; user-select: none; }
+  .key {
+    position: absolute; top: 0; border-radius: 0 0 6px 6px;
+    cursor: pointer; transition: background 0.15s, box-shadow 0.15s;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 10px; font-size: 10px;
+  }
+  .key.white {
+    width: 6.8%; height: 100%; background: #e8dfd3; border: 1px solid #a89e92;
+    color: var(--bg); z-index: 1;
+  }
+  .key.black {
+    width: 4.6%; height: 60%; background: #1f1a28; border: 1px solid #3a3244;
+    color: var(--muted); z-index: 2;
+  }
+  .key.white:hover { background: #f0e8dc; }
+  .key.black:hover { background: #302438; }
+  .key.white.playing { background: var(--warm); box-shadow: 0 0 16px rgba(212,163,115,0.5); }
+  .key.black.playing { background: var(--warm); box-shadow: 0 0 16px rgba(212,163,115,0.5); color: var(--bg); }
+  .key.characteristic { border-color: var(--accent); }
+  .key.white.characteristic { background: #f0dde4; }
+  .key.black.characteristic { background: #3a2030; border-color: var(--accent); }
+  .key.white.characteristic.playing { background: var(--accent); }
+  .key.black.characteristic.playing { background: var(--accent); }
+  .key.tonic.white { border-top: 4px solid var(--warm); }
+  .key.tonic.black { border-top: 4px solid var(--warm); }
+
+  .key-label { font-size: 9px; pointer-events: none; }
+
+  /* INFO PANEL */
+  .mode-info { min-height: 80px; }
+  .mode-title { font-size: 18px; color: var(--warm); margin-bottom: 4px; }
+  .mode-formula { font-size: 13px; color: var(--ink); margin-bottom: 8px; font-family: inherit; }
+  .mode-formula .char { color: var(--accent); font-weight: bold; }
+  .mode-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .transport { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+  .drone-indicator { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .drone-indicator.on { color: var(--warm); }
+
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 8px 0; }
+  .math code { background: #14111a; padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+
+  /* Responsive: stack room buttons on narrow screens */
+  @media (max-width: 700px) {
+    .room-row { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<nav style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding:10px 14px; background:#241e2d; border:1px solid #3a3244; border-radius:6px; font-size:12px; color:#8a7f92;">
+  <a href="index.html" style="color:#d4a373; text-decoration:none;">← Module: Modes</a>
+  <span>Lesson 1 of 4 — The Seven Rooms</span>
+  <a href="02-parent-scale.html" style="color:#d4a373; text-decoration:none;">Next: Parent Scale Illusion →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, #302438, #241e2d); border:1px solid #d4a373; border-radius:6px; padding:14px 18px; margin-bottom:20px; color:#d4a373; font-size:13px;">
+  ✓ Lesson 1 marked complete. <a href="index.html" style="color:#c17a9c;">Back to module →</a>
+</div>
+
+<h1>~ The Seven Rooms ~</h1>
+<p class="sub">Each mode is a room with its own character. A drone holds the floor — you play the scale on top. Same seven notes, seven completely different worlds.</p>
+
+<!-- Oscilloscope -->
+<div class="panel" style="padding: 12px;">
+  <canvas id="scope" width="1200" height="120" style="width:100%; height:120px; display:block; background:#14111a; border-radius:4px;"></canvas>
+</div>
+
+<!-- Transport + Drone -->
+<div class="panel">
+  <div class="transport">
+    <button id="startBtn" class="primary">▶ start drone</button>
+    <button id="stopBtn">■ stop</button>
+    <span style="color: var(--muted); display: flex; align-items: center; gap: 8px; font-size: 12px; margin-left: auto;">
+      <label for="vol" style="color: var(--muted);">vol</label>
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" style="width: 80px; accent-color: #d4a373;">
+      <span style="width: 28px; text-align: right;" id="volVal">80%</span>
+    </span>
+    <span id="droneLabel" class="drone-indicator">drone: off</span>
+  </div>
+</div>
+
+<!-- Room selector -->
+<h2>Choose a Room</h2>
+<div class="panel">
+  <div class="room-row" id="roomRow"></div>
+</div>
+
+<!-- Keyboard -->
+<h2>Play the Scale</h2>
+<div class="panel">
+  <div class="keyboard-wrap" id="keyboard"></div>
+</div>
+
+<!-- Mode info -->
+<h2>About This Mode</h2>
+<div class="panel mode-info" id="modeInfo">
+  <div class="mode-title" id="modeTitle">Ionian</div>
+  <div class="mode-formula" id="modeFormula"></div>
+  <div class="mode-desc" id="modeDesc"></div>
+</div>
+
+<!-- The Why -->
+<h2>Why Modes Matter</h2>
+<div class="panel math">
+  <p><strong style="color: var(--warm);">1. A mode isn't a scale — it's a <em>perspective.</em></strong> C Ionian and D Dorian use the exact same seven notes (C-D-E-F-G-A-B). The only difference is which note your ear hears as "home." The drone anchors that home — without it, your brain defaults to whatever sounds most like major.</p>
+
+  <p><strong style="color: var(--warm);">2. The characteristic note is the fingerprint.</strong> Every mode has one note that most separates it from its nearest "normal" neighbor. Dorian's raised 6th makes it sound jazzier than natural minor. Lydian's raised 4th makes it float. Learn the characteristic notes and you can name any mode by ear.</p>
+
+  <p><strong style="color: var(--warm);">3. You already know these sounds.</strong> Dorian = "Billie Jean," "So What." Phrygian = flamenco guitar. Lydian = the Simpsons theme, film scores that feel "lifted." Mixolydian = "Sweet Home Alabama," most blues. These aren't exotic — they're the colors you've been hearing your whole life without names.</p>
+
+  <p style="color: var(--muted);">Try switching rooms while the drone is on. Listen for the moment the vibe shifts — that shift is the mode changing, even though the notes are the same (just starting from a different place).</p>
+
+  <hr style="border:none; border-top:1px solid var(--grid); margin:20px 0;">
+  <p style="color: var(--muted); font-size: 12px; margin-bottom: 8px;">When you can walk into any room, hear the drone, play the scale, and feel the difference without reading the label:</p>
+  <button id="markComplete" class="complete-btn">Mark Lesson 1 Complete ✓</button>
+</div>
+
+<script>
+// ============================================================
+// MODE DATA — all modes derived from C major (white keys)
+// ============================================================
+const MODES = [
+  {
+    name: 'Ionian', degree: 1, root: 'C', vibe: 'bright, resolved',
+    notes: ['C4','D4','E4','F4','G4','A4','B4','C5'],
+    droneNote: 'C3',
+    characteristic: null,  // no single char note — it IS the reference
+    formula: '1 2 3 4 5 6 7',
+    charLabel: '(the reference — the "normal" major scale)',
+    desc: 'The default. The sound of "Happy Birthday," nursery rhymes, and pop hooks that want to sound triumphant. Every other mode is defined by how it differs from this one.',
+    color: '#d4a373'
+  },
+  {
+    name: 'Dorian', degree: 2, root: 'D', vibe: 'smooth, jazzy',
+    notes: ['D4','E4','F4','G4','A4','B4','C5','D5'],
+    droneNote: 'D3',
+    characteristic: 'B4',  // the ♮6 — raised 6th compared to natural minor
+    formula: '1 2 ♭3 4 5 <span class="char">♮6</span> ♭7',
+    charLabel: 'Characteristic note: ♮6 (the raised 6th)',
+    desc: 'Minor, but warm — not sad, more like reflective. The raised 6th is what keeps it from sounding like plain minor. "Billie Jean," "So What," every funky minor groove that doesn\'t feel depressing.',
+    color: '#7eb8c9'
+  },
+  {
+    name: 'Phrygian', degree: 3, root: 'E', vibe: 'dark, spanish',
+    notes: ['E4','F4','G4','A4','B4','C5','D5','E5'],
+    droneNote: 'E3',
+    characteristic: 'F4',  // the ♭2 — the flamenco interval
+    formula: '1 <span class="char">♭2</span> ♭3 4 5 ♭6 ♭7',
+    charLabel: 'Characteristic note: ♭2 (the flat 2nd)',
+    desc: 'That half-step from root to ♭2 IS the sound — instant flamenco, metal intros, anything that needs to feel ancient or dangerous. The most immediately recognizable mode because ♭2 is so rare in pop.',
+    color: '#c75d5d'
+  },
+  {
+    name: 'Lydian', degree: 4, root: 'F', vibe: 'dreamy, floating',
+    notes: ['F4','G4','A4','B4','C5','D5','E5','F5'],
+    droneNote: 'F3',
+    characteristic: 'B4',  // the ♯4 — the "floaty" tritone
+    formula: '1 2 3 <span class="char">♯4</span> 5 6 7',
+    charLabel: 'Characteristic note: ♯4 (the raised 4th)',
+    desc: 'Major but weightless. That ♯4 creates a tritone with the root that wants to float up instead of resolve down. Film scores use this when the camera is soaring over a landscape. The Simpsons theme. E.T. flying across the moon.',
+    color: '#b38cd9'
+  },
+  {
+    name: 'Mixolydian', degree: 5, root: 'G', vibe: 'bluesy, confident',
+    notes: ['G4','A4','B4','C5','D5','E5','F5','G5'],
+    droneNote: 'G3',
+    characteristic: 'F5',  // the ♭7 — the blues note
+    formula: '1 2 3 4 5 6 <span class="char">♭7</span>',
+    charLabel: 'Characteristic note: ♭7 (the flat 7th)',
+    desc: 'Major but with a blues lean. That ♭7 prevents the scale from sounding too "perfect" — adds swagger. "Sweet Home Alabama," "Norwegian Wood," rock and blues that feel sunny but not saccharine.',
+    color: '#d4a373'
+  },
+  {
+    name: 'Aeolian', degree: 6, root: 'A', vibe: 'melancholy, natural',
+    notes: ['A4','B4','C5','D5','E5','F5','G5','A5'],
+    droneNote: 'A3',
+    characteristic: 'F5',  // the ♭6 — compared to Dorian
+    formula: '1 2 ♭3 4 5 <span class="char">♭6</span> ♭7',
+    charLabel: 'Characteristic note: ♭6 (compared to Dorian, this is what makes it sadder)',
+    desc: 'The "natural minor" — the minor you know. Darker than Dorian because that ♭6 pulls everything down. Most pop ballads, minor-key rock, anything that feels genuinely sad rather than just moody.',
+    color: '#6e8fa5'
+  },
+  {
+    name: 'Locrian', degree: 7, root: 'B', vibe: 'unstable, tense',
+    notes: ['B4','C5','D5','E5','F5','G5','A5','B5'],
+    droneNote: 'B3',
+    characteristic: 'F5',  // the ♭5 — the diminished fifth
+    formula: '1 <span class="char">♭2</span> ♭3 4 <span class="char">♭5</span> ♭6 ♭7',
+    charLabel: 'Characteristic notes: ♭2 and ♭5 (diminished — can\'t even settle)',
+    desc: 'The weird one. That ♭5 means even the "home" chord is diminished — it doesn\'t feel like home at all. Almost never used as a key center in real music, but crucial for understanding how the system works. The mode that proves the rule.',
+    color: '#7a7a7a'
+  }
+];
+
+// ============================================================
+// ALL CHROMATIC NOTES for the keyboard (C4 to C5, two octaves displayed)
+// We show C4 through the end of the mode's range
+// ============================================================
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const IS_BLACK = [0,1,0,1,0,0,1,0,1,0,1,0];
+
+// Build a full keyboard from C4 to B5 (two octaves of white keys)
+function buildKeyboardNotes() {
+  const notes = [];
+  for (let oct = 4; oct <= 5; oct++) {
+    for (let i = 0; i < 12; i++) {
+      notes.push({ name: NOTE_NAMES[i] + oct, isBlack: IS_BLACK[i] === 1 });
+    }
+  }
+  return notes;
+}
+const ALL_KEYS = buildKeyboardNotes();
+
+// ============================================================
+// STATE
+// ============================================================
+let currentMode = 0;
+let started = false;
+let droneOn = false;
+
+// Tone.js nodes
+let droneSynth, melodySynth, reverb, masterGain, scopeAnalyser, lpFilter;
+let scopeRAF;
+
+// ============================================================
+// RENDER ROOM BUTTONS
+// ============================================================
+const roomRow = document.getElementById('roomRow');
+MODES.forEach((m, i) => {
+  const div = document.createElement('div');
+  div.className = 'room-btn' + (i === 0 ? ' active' : '');
+  div.dataset.idx = i;
+  div.innerHTML = `
+    <div class="mode-num">mode ${m.degree}</div>
+    <div class="mode-name">${m.name}</div>
+    <div class="mode-vibe">${m.vibe}</div>`;
+  div.addEventListener('click', () => switchRoom(i));
+  roomRow.appendChild(div);
+});
+
+// ============================================================
+// RENDER KEYBOARD
+// ============================================================
+const keyboardEl = document.getElementById('keyboard');
+
+function renderKeyboard() {
+  keyboardEl.innerHTML = '';
+  const mode = MODES[currentMode];
+  const modeNoteNames = mode.notes.map(n => n.replace(/\d/, '')); // strip octave
+  const rootName = mode.root;
+  const charNoteName = mode.characteristic ? mode.characteristic.replace(/\d/, '') : null;
+
+  // Position keys like a real piano — white keys evenly spaced,
+  // black keys centered between their neighbors
+  let whiteIdx = 0;
+  const totalWhites = ALL_KEYS.filter(k => !k.isBlack).length;
+  const whiteW = 100 / totalWhites; // % width per white key
+
+  ALL_KEYS.forEach((k, i) => {
+    const noteName = k.name.replace(/\d/, '');
+    const inMode = modeNoteNames.includes(noteName);
+
+    const keyEl = document.createElement('div');
+    keyEl.className = 'key ' + (k.isBlack ? 'black' : 'white');
+
+    if (k.isBlack) {
+      // Black keys sit between the two adjacent white keys, offset slightly right
+      const prevWhiteCount = ALL_KEYS.slice(0, i).filter(x => !x.isBlack).length;
+      const leftPct = (prevWhiteCount * whiteW) - (whiteW * 0.32);
+      keyEl.style.left = leftPct + '%';
+    } else {
+      keyEl.style.left = (whiteIdx * whiteW) + '%';
+      keyEl.style.width = whiteW + '%';
+      whiteIdx++;
+    }
+
+    // Highlight: is it in the mode? Is it the characteristic note? Is it the tonic?
+    if (inMode) {
+      if (noteName === rootName) keyEl.classList.add('tonic');
+      if (charNoteName && noteName === charNoteName) keyEl.classList.add('characteristic');
+
+      // Label
+      keyEl.innerHTML = `<span class="key-label">${noteName}</span>`;
+
+      // Click to play
+      keyEl.addEventListener('mousedown', (e) => { e.preventDefault(); playNote(k.name, keyEl); });
+      keyEl.addEventListener('mouseup', () => releaseNote(k.name, keyEl));
+      keyEl.addEventListener('mouseleave', () => releaseNote(k.name, keyEl));
+      // Touch
+      keyEl.addEventListener('touchstart', (e) => { e.preventDefault(); playNote(k.name, keyEl); });
+      keyEl.addEventListener('touchend', () => releaseNote(k.name, keyEl));
+    } else {
+      // Non-mode keys: dimmed, not interactive
+      if (k.isBlack) {
+        keyEl.style.background = '#18141f';
+        keyEl.style.borderColor = '#252030';
+      } else {
+        keyEl.style.background = '#b0a898';
+        keyEl.style.borderColor = '#8a7f92';
+      }
+      keyEl.style.opacity = '0.4';
+      keyEl.style.cursor = 'default';
+    }
+
+    keyboardEl.appendChild(keyEl);
+  });
+}
+
+// ============================================================
+// PLAY / RELEASE NOTES
+// ============================================================
+function playNote(note, keyEl) {
+  if (!started) return;
+  keyEl.classList.add('playing');
+  melodySynth.triggerAttack(note, Tone.now(), 0.6);
+}
+function releaseNote(note, keyEl) {
+  if (!started) return;
+  keyEl.classList.remove('playing');
+  melodySynth.triggerRelease(note, '+0.1');
+}
+
+// ============================================================
+// SWITCH ROOM
+// ============================================================
+function switchRoom(idx) {
+  currentMode = idx;
+
+  // Update room buttons
+  document.querySelectorAll('.room-btn').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+  });
+
+  // Rebuild keyboard for this mode
+  renderKeyboard();
+
+  // Update info panel
+  const m = MODES[idx];
+  document.getElementById('modeTitle').textContent = m.name;
+  document.getElementById('modeTitle').style.color = m.color;
+  document.getElementById('modeFormula').innerHTML = m.formula;
+  document.getElementById('modeDesc').textContent = m.desc;
+
+  // Move the drone
+  if (started && droneOn && droneSynth) {
+    droneSynth.triggerRelease('+0.05');
+    setTimeout(() => {
+      droneSynth.triggerAttack(m.droneNote, Tone.now(), 0.3);
+    }, 100);
+    document.getElementById('droneLabel').textContent = 'drone: ' + m.root;
+  }
+}
+
+// ============================================================
+// TONE.JS SIGNAL CHAIN
+// ============================================================
+function buildChain() {
+  // Master bus
+  masterGain = new Tone.Gain(1).toDestination();
+  scopeAnalyser = new Tone.Analyser('waveform', 1024);
+  masterGain.connect(scopeAnalyser);
+
+  // Effects
+  reverb = new Tone.Reverb({ decay: 4, wet: 0.35 }).connect(masterGain);
+  lpFilter = new Tone.Filter({ frequency: 3500, type: 'lowpass', rolloff: -12 }).connect(reverb);
+
+  // Drone synth — sawtooth through lowpass with slow LFO
+  droneSynth = new Tone.MonoSynth({
+    oscillator: { type: 'sawtooth' },
+    envelope: { attack: 0.8, decay: 0.3, sustain: 0.9, release: 2.0 },
+    filter: { Q: 2, type: 'lowpass', rolloff: -24 },
+    filterEnvelope: { attack: 0.5, decay: 0.3, sustain: 0.6, baseFrequency: 200, octaves: 2.5 },
+    volume: -18
+  }).connect(lpFilter);
+
+  // Add a slow LFO to the drone filter for movement
+  const droneLFO = new Tone.LFO({ frequency: 0.15, min: 150, max: 400, type: 'sine' }).start();
+  droneLFO.connect(droneSynth.filter.frequency);
+
+  // Melody synth — a bright pluck for playing scale notes
+  melodySynth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.8 },
+    volume: -10
+  }).connect(lpFilter);
+}
+
+// ============================================================
+// TRANSPORT
+// ============================================================
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (masterGain) masterGain.gain.rampTo(v, 0.05);
+});
+
+document.getElementById('startBtn').addEventListener('click', async () => {
+  if (!started) {
+    await Tone.start();
+    buildChain();
+    startScope();
+    started = true;
+  }
+  const m = MODES[currentMode];
+  droneSynth.triggerAttack(m.droneNote, Tone.now(), 0.3);
+  droneOn = true;
+  document.getElementById('droneLabel').textContent = 'drone: ' + m.root;
+  document.getElementById('droneLabel').classList.add('on');
+});
+
+document.getElementById('stopBtn').addEventListener('click', () => {
+  if (!started) return;
+  droneOn = false;
+  droneSynth.triggerRelease('+0.05');
+  melodySynth.releaseAll();
+  document.getElementById('droneLabel').textContent = 'drone: off';
+  document.getElementById('droneLabel').classList.remove('on');
+  document.querySelectorAll('.key').forEach(k => k.classList.remove('playing'));
+});
+
+// ============================================================
+// OSCILLOSCOPE
+// ============================================================
+function startScope() {
+  const canvas = document.getElementById('scope');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  function draw() {
+    scopeRAF = requestAnimationFrame(draw);
+    const data = scopeAnalyser.getValue();
+
+    ctx.fillStyle = 'rgba(20, 17, 26, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'rgba(58, 50, 68, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+    const m = MODES[currentMode];
+    ctx.strokeStyle = m.color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = m.color.replace(')', ', 0.7)').replace('rgb', 'rgba');
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const step = W / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const x = i * step;
+      const y = H/2 + data[i] * (H/2) * 0.9;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  draw();
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS — play notes with keyboard
+// ============================================================
+const KEY_MAP = {}; // built dynamically per mode
+const QWERTY = ['a','s','d','f','g','h','j','k']; // 8 notes of the mode
+
+document.addEventListener('keydown', (e) => {
+  if (e.repeat || !started) return;
+  const idx = QWERTY.indexOf(e.key.toLowerCase());
+  if (idx === -1) return;
+  const mode = MODES[currentMode];
+  if (idx >= mode.notes.length) return;
+  const note = mode.notes[idx];
+  const keyEls = keyboardEl.querySelectorAll('.key');
+  // Find the matching key element
+  keyEls.forEach(el => {
+    const label = el.querySelector('.key-label');
+    if (label && el.classList.contains('tonic') === false) {
+      // Match by note name — but we need the full note with octave
+    }
+  });
+  // Simpler: just trigger the synth
+  melodySynth.triggerAttack(note, Tone.now(), 0.6);
+  // Highlight: find key by matching
+  highlightKeyByNote(note, true);
+});
+
+document.addEventListener('keyup', (e) => {
+  if (!started) return;
+  const idx = QWERTY.indexOf(e.key.toLowerCase());
+  if (idx === -1) return;
+  const mode = MODES[currentMode];
+  if (idx >= mode.notes.length) return;
+  const note = mode.notes[idx];
+  melodySynth.triggerRelease(note, '+0.1');
+  highlightKeyByNote(note, false);
+});
+
+function highlightKeyByNote(note, on) {
+  const noteName = note.replace(/\d/, '');
+  const keyEls = keyboardEl.querySelectorAll('.key');
+  keyEls.forEach(el => {
+    const label = el.querySelector('.key-label');
+    if (label && label.textContent === noteName) {
+      if (on) el.classList.add('playing');
+      else el.classList.remove('playing');
+    }
+  });
+}
+
+// ============================================================
+// MODULE PROGRESS
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-modes';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const progress = loadProgress();
+const completeBtn = document.getElementById('markComplete');
+const banner = document.getElementById('completeBanner');
+
+if (progress.lesson1 === 'complete') {
+  completeBtn.textContent = 'Lesson 1 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+}
+
+completeBtn.addEventListener('click', () => {
+  if (progress.lesson1 === 'complete') return;
+  progress.lesson1 = 'complete';
+  progress.lesson1CompletedAt = new Date().toISOString();
+  saveProgress(progress);
+  completeBtn.textContent = 'Lesson 1 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderKeyboard();
+switchRoom(0);
+</script>
+</body>
+</html>

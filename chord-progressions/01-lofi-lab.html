@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Studio — Lofi Loop Lab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    --bg: #1a1620;
+    --panel: #241e2d;
+    --ink: #e8dfd3;
+    --muted: #8a7f92;
+    --warm: #d4a373;
+    --accent: #c17a9c;
+    --grid: #3a3244;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.5;
+    max-width: 1200px; margin: 0 auto;
+  }
+  nav a:hover { color: #c17a9c !important; }
+  .complete-btn { background: transparent; border: 1px solid #8fb99c; color: #8fb99c; padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; }
+  .complete-btn:hover { background: #8fb99c; color: #1a1620; }
+  .complete-btn.done { background: #8fb99c; color: #1a1620; border-color: #8fb99c; cursor: default; }
+  h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+  h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+
+  .transport { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+  button { font-family: inherit; font-size: 13px; padding: 10px 20px; border: 1px solid var(--grid);
+           background: var(--panel); color: var(--ink); border-radius: 4px; cursor: pointer; }
+  button:hover { border-color: var(--warm); color: var(--warm); }
+  button.primary { background: var(--warm); color: var(--bg); border-color: var(--warm); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  .controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .control { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+  .control label { color: var(--muted); }
+  .control input[type=range] { width: 100%; }
+  .value { color: var(--warm); }
+
+  .chord-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+  .chord {
+    padding: 14px; border: 1px solid var(--grid); border-radius: 4px;
+    background: #1f1a28; transition: all 0.2s;
+  }
+  .chord.active { border-color: var(--warm); background: #302438; box-shadow: 0 0 20px rgba(212,163,115,0.2); }
+  .chord .numeral { font-size: 22px; color: var(--warm); }
+  .chord .name { font-size: 14px; color: var(--ink); margin: 4px 0; }
+  .chord .notes { font-size: 11px; color: var(--muted); }
+  .chord .role { font-size: 10px; color: var(--accent); margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
+
+  pre { margin: 0; padding: 16px; background: #14111a; border-radius: 4px; overflow-x: auto;
+        font-size: 12px; color: #b8ae9e; border: 1px solid var(--grid); }
+  .hl-num { color: var(--warm); }
+  .hl-str { color: #8fb99c; }
+  .hl-key { color: var(--accent); }
+  .hl-com { color: var(--muted); font-style: italic; }
+
+  .math { font-size: 13px; color: var(--ink); }
+  .math p { margin: 8px 0; }
+  .math code { background: #14111a; padding: 2px 6px; border-radius: 3px; color: var(--warm); }
+</style>
+</head>
+<body>
+
+<nav style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding:10px 14px; background:#241e2d; border:1px solid #3a3244; border-radius:6px; font-size:12px; color:#8a7f92;">
+  <a href="index.html" style="color:#d4a373; text-decoration:none;">← Module: Chord Progressions</a>
+  <span>Lesson 1 of 4 — Lofi Loop Lab</span>
+  <a href="02-swapper.html" style="color:#d4a373; text-decoration:none;">Next: Progression Swapper →</a>
+</nav>
+
+<div id="completeBanner" style="display:none; background:linear-gradient(90deg, #302438, #241e2d); border:1px solid #d4a373; border-radius:6px; padding:14px 18px; margin-bottom:20px; color:#d4a373; font-size:13px;">
+  ✓ Lesson 1 marked complete. <a href="index.html" style="color:#c17a9c;">Back to module →</a>
+</div>
+
+<h1>~ The Lofi Loop Lab ~</h1>
+<p class="sub">Key of C major. ii–V–I–vi with sevenths. Rhodes + jazz bass + soft kit + vinyl dust.</p>
+
+<div class="panel" style="padding: 12px;">
+  <canvas id="scope" width="1200" height="140" style="width:100%; height:140px; display:block; background:#14111a; border-radius:4px;"></canvas>
+</div>
+
+<div class="panel">
+  <div class="transport">
+    <button id="play" class="primary">▶ play</button>
+    <button id="stop">■ stop</button>
+    <span style="color: var(--muted); margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px;">
+      <label for="vol" style="color: var(--muted);">vol</label>
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" style="width: 80px; accent-color: #d4a373;">
+      <span style="width: 28px; text-align: right;" id="volVal">80%</span>
+      <span style="margin-left: 8px;">72 BPM</span>
+    </span>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label>vinyl crackle <span id="crackleVal" class="value">0.35</span></label>
+      <input type="range" id="crackle" min="0" max="1" step="0.01" value="0.35">
+    </div>
+    <div class="control">
+      <label>lowpass (muffle) <span id="lpVal" class="value">2800 Hz</span></label>
+      <input type="range" id="lp" min="400" max="8000" step="50" value="2800">
+    </div>
+    <div class="control">
+      <label>wow &amp; flutter (wobble) <span id="wobVal" class="value">0.4</span></label>
+      <input type="range" id="wob" min="0" max="1" step="0.01" value="0.4">
+    </div>
+    <div class="control">
+      <label>reverb <span id="revVal" class="value">0.3</span></label>
+      <input type="range" id="rev" min="0" max="1" step="0.01" value="0.3">
+    </div>
+  </div>
+</div>
+
+<h2>The Progression</h2>
+<div class="panel">
+  <div class="chord-row" id="chords"></div>
+</div>
+
+<h2>The Code (what you're hearing)</h2>
+<div class="panel">
+<pre id="code"></pre>
+</div>
+
+<h2>The Math (why it works)</h2>
+<div class="panel math">
+  <p><strong style="color: var(--warm);">1. ii–V–I is gravity.</strong> <code>Dm7 → G7 → Cmaj7</code> is the most famous cadence in jazz. Each chord root moves <em>down a fifth</em> — that's walking counterclockwise around the circle of fifths, the most resolved direction there is. Your ear hears "tension → release → home."</p>
+
+  <p><strong style="color: var(--warm);">2. The 7ths soften everything.</strong> A plain C triad (C-E-G) is bright and declarative. Cmaj7 adds a B — a half-step under C — which creates a dreamy, unresolved shimmer. Dm7 adds a C; G7 adds an F. Every chord has one note that <em>wants</em> to move somewhere, so the loop never feels static.</p>
+
+  <p><strong style="color: var(--warm);">3. Am7 is the "sigh."</strong> We don't stop on the I — we fall to <code>vi</code> (Am7), the <em>relative minor</em>. Same notes as C major, but melancholy. This is the "lofi turnaround" — it keeps the loop from resolving too hard, so it can repeat forever without feeling repetitive.</p>
+
+  <p><strong style="color: var(--warm);">4. The vinyl dust isn't decoration — it's <em>context</em>.</strong> Crackle + lowpass filter + slight pitch wobble tells your brain "this is old, imperfect, human." That imperfection signal is half the genre. Strip it out and the same chords sound like a smooth-jazz commercial.</p>
+
+  <p style="color: var(--muted);">Try dragging the lowpass down to ~900 Hz and the crackle up. Watch the genre collapse into "rainy Tokyo apartment, 3am."</p>
+
+  <hr style="border:none; border-top:1px solid var(--grid); margin:20px 0;">
+  <p style="color: var(--muted); font-size: 12px; margin-bottom: 8px;">When you feel like you've internalized the <code>ii–V–I–vi</code> pattern and can hear what the lowpass + crackle do to the vibe:</p>
+  <button id="markComplete" class="complete-btn">Mark Lesson 1 Complete ✓</button>
+</div>
+
+<script>
+// ============================================================
+// THE PROGRESSION — this is the "song"
+// ============================================================
+const progression = [
+  { numeral: 'iim7',    name: 'Dm7',    notes: ['D3','F3','A3','C4'],   role: 'predominant — sets up tension' },
+  { numeral: 'V7',      name: 'G7',     notes: ['G2','B3','D4','F4'],   role: 'dominant — wants to resolve' },
+  { numeral: 'Imaj7',   name: 'Cmaj7',  notes: ['C3','E3','G3','B3'],   role: 'tonic — home, but shimmery' },
+  { numeral: 'vim7',    name: 'Am7',    notes: ['A2','C3','E3','G3'],   role: 'the sigh — relative minor' },
+];
+const bassline = ['D2', 'G1', 'C2', 'A1'];   // root notes, one per bar
+
+// ============================================================
+// RENDER chord cards + code view
+// ============================================================
+const chordsEl = document.getElementById('chords');
+progression.forEach((c, i) => {
+  const div = document.createElement('div');
+  div.className = 'chord';
+  div.id = 'chord-' + i;
+  div.innerHTML = `
+    <div class="numeral">${c.numeral}</div>
+    <div class="name">${c.name}</div>
+    <div class="notes">${c.notes.join(' · ')}</div>
+    <div class="role">${c.role}</div>`;
+  chordsEl.appendChild(div);
+});
+
+document.getElementById('code').innerHTML = `<span class="hl-com">// The 4-chord loop, in C major</span>
+<span class="hl-key">const</span> progression = [
+  { numeral: <span class="hl-str">'iim7'</span>,  name: <span class="hl-str">'Dm7'</span>,   notes: [<span class="hl-str">'D3','F3','A3','C4'</span>] },
+  { numeral: <span class="hl-str">'V7'</span>,    name: <span class="hl-str">'G7'</span>,    notes: [<span class="hl-str">'G2','B3','D4','F4'</span>] },
+  { numeral: <span class="hl-str">'Imaj7'</span>, name: <span class="hl-str">'Cmaj7'</span>, notes: [<span class="hl-str">'C3','E3','G3','B3'</span>] },
+  { numeral: <span class="hl-str">'vim7'</span>,  name: <span class="hl-str">'Am7'</span>,   notes: [<span class="hl-str">'A2','C3','E3','G3'</span>] },
+];
+
+<span class="hl-com">// Signal chain: rhodes → lowpass (muffle) → vibrato (wobble) → reverb → out
+//                drums ┘                                                  ↑
+//                vinyl noise ─────────────────────────────────────────────┘</span>
+
+<span class="hl-key">const</span> tempo = <span class="hl-num">72</span>; <span class="hl-com">// classic lofi bpm — slow enough to breathe</span>
+<span class="hl-key">const</span> swing = <span class="hl-num">0.15</span>; <span class="hl-com">// slight behind-the-beat feel</span>`;
+
+// ============================================================
+// TONE.JS SIGNAL CHAIN
+// ============================================================
+let started = false;
+let loop, drumLoop, bassLoop, noise, noiseGain, crackleMute, lpFilter, vibrato, reverb, rhodes, bass, kick, snare, hat;
+let masterGain, scopeAnalyser, scopeRAF;
+
+function buildChain() {
+  Tone.Transport.bpm.value = 72;
+  Tone.Transport.swing = 0.15;
+  Tone.Transport.swingSubdivision = '8n';
+
+  // Master bus → analyser → destination (so scope sees EVERYTHING, including crackle)
+  masterGain = new Tone.Gain(1).toDestination();
+  scopeAnalyser = new Tone.Analyser('waveform', 1024);
+  masterGain.connect(scopeAnalyser);
+
+  // Output chain
+  reverb = new Tone.Reverb({ decay: 3.5, wet: 0.3 }).connect(masterGain);
+  vibrato = new Tone.Vibrato({ frequency: 4.5, depth: 0.04 }).connect(reverb);
+  lpFilter = new Tone.Filter({ frequency: 2800, type: 'lowpass', rolloff: -24 }).connect(vibrato);
+
+  // Rhodes-ish (FM synth with soft attack)
+  rhodes = new Tone.PolySynth(Tone.FMSynth, {
+    harmonicity: 3.2, modulationIndex: 8,
+    envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 1.2 },
+    modulationEnvelope: { attack: 0.02, decay: 0.5, sustain: 0.2, release: 0.5 },
+    volume: -14
+  }).connect(lpFilter);
+
+  // Upright bass
+  bass = new Tone.MonoSynth({
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.02, decay: 0.2, sustain: 0.6, release: 0.4 },
+    filter: { Q: 1, type: 'lowpass', rolloff: -12 },
+    filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.3, baseFrequency: 300, octaves: 2 },
+    volume: -10
+  }).connect(lpFilter);
+
+  // Drums — soft kit
+  kick = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, envelope: { attack: 0.001, decay: 0.4, sustain: 0 }, volume: -6 }).connect(lpFilter);
+  snare = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: 0.001, decay: 0.15, sustain: 0 }, volume: -18 }).connect(lpFilter);
+  hat = new Tone.MetalSynth({ frequency: 200, envelope: { attack: 0.001, decay: 0.05, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -30 }).connect(lpFilter);
+
+  // Vinyl crackle — pink noise through a highpass, bypassing the lowpass so it stays crispy
+  // Routed through crackleMute so the Stop button can kill it instantly.
+  noise = new Tone.Noise('pink').start();
+  const crackleFilter = new Tone.Filter({ frequency: 3000, type: 'highpass' });
+  noiseGain = new Tone.Gain(0.06);
+  crackleMute = new Tone.Gain(0).connect(masterGain); // starts muted; play() opens it
+  noise.connect(crackleFilter); crackleFilter.connect(noiseGain); noiseGain.connect(crackleMute);
+
+  // ============================================================
+  // THE LOOP — each bar plays one chord
+  // ============================================================
+  let bar = 0;
+  loop = new Tone.Loop((time) => {
+    const idx = bar % progression.length;
+    const chord = progression[idx];
+
+    // Light up the active chord card
+    Tone.Draw.schedule(() => {
+      document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+      document.getElementById('chord-' + idx).classList.add('active');
+    }, time);
+
+    // Play the chord on beats 1 and 3 (half-note hits)
+    rhodes.triggerAttackRelease(chord.notes, '2n', time, 0.5);
+    rhodes.triggerAttackRelease(chord.notes, '2n', time + Tone.Time('2n').toSeconds(), 0.4);
+
+    // Bassline — root on 1, fifth on 3
+    bass.triggerAttackRelease(bassline[idx], '4n', time, 0.7);
+    bass.triggerAttackRelease(bassline[idx], '4n', time + Tone.Time('2n').toSeconds(), 0.6);
+
+    bar++;
+  }, '1m').start(0);
+
+  // Drum loop — boom bap kick/snare, hats on offbeats
+  drumLoop = new Tone.Loop((time) => {
+    kick.triggerAttackRelease('C1', '8n', time);
+    kick.triggerAttackRelease('C1', '8n', time + Tone.Time('2n').toSeconds() + Tone.Time('8n').toSeconds());
+    snare.triggerAttackRelease('8n', time + Tone.Time('4n').toSeconds());
+    snare.triggerAttackRelease('8n', time + Tone.Time('2n').toSeconds() + Tone.Time('4n').toSeconds());
+    for (let i = 0; i < 8; i++) {
+      if (i % 2 === 1) hat.triggerAttackRelease('32n', time + i * Tone.Time('8n').toSeconds(), 0.3);
+    }
+  }, '1m').start(0);
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+document.getElementById('play').addEventListener('click', async () => {
+  if (!started) { await Tone.start(); buildChain(); startScope(); started = true; }
+  // Open the crackle bus — ramp up smoothly
+  if (crackleMute) crackleMute.gain.rampTo(1, 0.05);
+  Tone.Transport.start();
+});
+document.getElementById('stop').addEventListener('click', () => {
+  Tone.Transport.stop();
+  // Silence EVERYTHING — including the free-running vinyl crackle and rhodes tails
+  if (crackleMute) crackleMute.gain.rampTo(0, 0.05);
+  if (rhodes) rhodes.releaseAll();
+  document.querySelectorAll('.chord').forEach(el => el.classList.remove('active'));
+});
+
+// ============================================================
+// OSCILLOSCOPE — draws the master bus waveform
+// ============================================================
+function startScope() {
+  const canvas = document.getElementById('scope');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  function draw() {
+    scopeRAF = requestAnimationFrame(draw);
+    const data = scopeAnalyser.getValue(); // Float32Array, -1..1
+
+    // Fade trail for that CRT phosphor feel
+    ctx.fillStyle = 'rgba(20, 17, 26, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Center line
+    ctx.strokeStyle = 'rgba(58, 50, 68, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+    // Waveform
+    ctx.strokeStyle = '#d4a373';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(212, 163, 115, 0.7)';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    const step = W / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const x = i * step;
+      const y = H/2 + data[i] * (H/2) * 0.9;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  draw();
+}
+
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('volVal').textContent = Math.round(v * 100) + '%';
+  if (masterGain) masterGain.gain.rampTo(v, 0.05);
+});
+
+document.getElementById('crackle').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('crackleVal').textContent = v.toFixed(2);
+  if (noiseGain) noiseGain.gain.rampTo(v * 0.15, 0.1);
+});
+document.getElementById('lp').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('lpVal').textContent = Math.round(v) + ' Hz';
+  if (lpFilter) lpFilter.frequency.rampTo(v, 0.1);
+});
+document.getElementById('wob').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('wobVal').textContent = v.toFixed(2);
+  if (vibrato) vibrato.depth.rampTo(v * 0.1, 0.1);
+});
+document.getElementById('rev').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.getElementById('revVal').textContent = v.toFixed(2);
+  if (reverb) reverb.wet.rampTo(v, 0.1);
+});
+
+// ============================================================
+// MODULE PROGRESS — mark lesson complete in localStorage
+// ============================================================
+const PROGRESS_KEY = 'rizzo-studio-chord-progressions';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
+
+const progress = loadProgress();
+const completeBtn = document.getElementById('markComplete');
+const banner = document.getElementById('completeBanner');
+
+if (progress.lesson1 === 'complete') {
+  completeBtn.textContent = 'Lesson 1 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+}
+
+completeBtn.addEventListener('click', () => {
+  if (progress.lesson1 === 'complete') return;
+  progress.lesson1 = 'complete';
+  progress.lesson1CompletedAt = new Date().toISOString();
+  saveProgress(progress);
+  completeBtn.textContent = 'Lesson 1 Complete ✓';
+  completeBtn.classList.add('done');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+</script>
+</body>
+</html>

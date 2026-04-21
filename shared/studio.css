@@ -1,0 +1,148 @@
+/* ============================================================
+   studio.css — shared base for all Rizzo Studio lessons.
+
+   Module-index pages import index.css on top of this.
+   Lessons import only this file.
+   ============================================================ */
+
+:root {
+  --bg:         #1a1620;
+  --panel:      #241e2d;  /* default card background */
+  --panel-2:    #1f1a28;  /* nested wells, resting chord cards */
+  --panel-deep: #14111a;  /* deepest inset — scope bg, pre bg */
+  --panel-hi:   #302438;  /* active / highlighted panel */
+  --ink:        #e8dfd3;
+  --muted:      #8a7f92;
+  --warm:       #d4a373;
+  --accent:     #c17a9c;
+  --green:      #8fb99c;
+  --grid:       #3a3244;
+  --lock:       #4a4252;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  padding: 32px;
+  max-width: 1200px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+a { color: var(--warm); text-decoration: none; }
+a:hover { color: var(--accent); }
+
+/* --- TYPOGRAPHY (lesson scale; module-index scale lives in index.css) --- */
+h1 { font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--warm); }
+h2 { font-weight: 400; font-size: 14px; margin: 24px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+.sub { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+
+/* --- PANEL --- */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--grid);
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+/* --- BUTTONS --- */
+button {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 10px 20px;
+  border: 1px solid var(--grid);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--warm); color: var(--warm); }
+button.primary {
+  background: var(--warm);
+  color: var(--bg);
+  border-color: var(--warm);
+}
+button.primary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+/* --- MARK COMPLETE BUTTON --- */
+.complete-btn {
+  background: transparent;
+  border: 1px solid var(--green);
+  color: var(--green);
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.complete-btn:hover { background: var(--green); color: var(--bg); }
+.complete-btn.done {
+  background: var(--green);
+  color: var(--bg);
+  border-color: var(--green);
+  cursor: default;
+}
+
+/* --- LESSON NAV (top of each lesson page) --- */
+.lesson-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--grid);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.lesson-nav a { color: var(--warm); }
+.lesson-nav a:hover { color: var(--accent); }
+
+/* --- COMPLETE BANNER (revealed after Mark Complete) --- */
+.complete-banner {
+  display: none;
+  background: linear-gradient(90deg, var(--panel-hi), var(--panel));
+  border: 1px solid var(--warm);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  color: var(--warm);
+  font-size: 13px;
+}
+.complete-banner a { color: var(--accent); }
+
+/* --- CODE BLOCKS (for lessons that show source) --- */
+pre {
+  margin: 0;
+  padding: 16px;
+  background: var(--panel-deep);
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 12px;
+  color: #b8ae9e;  /* pre text — only used here, left as literal */
+  border: 1px solid var(--grid);
+}
+.hl-num { color: var(--warm); }
+.hl-str { color: var(--green); }
+.hl-key { color: var(--accent); }
+.hl-com { color: var(--muted); font-style: italic; }
+
+/* --- SCOPE CANVAS (shared oscilloscope container) --- */
+.scope-panel { padding: 12px; }
+.scope-canvas {
+  width: 100%;
+  height: 140px;
+  display: block;
+  background: var(--panel-deep);
+  border-radius: 4px;
+}
