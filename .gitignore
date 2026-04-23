@@ -15,3 +15,9 @@
 # Deployment helpers (reference PAT path, not meant to be public)
 BOOTSTRAP.sh
 SHIP-*.sh
+
+# Node / Vite toolchain (added 2026-04-23 for TS migration)
+node_modules/
+dist/
+*.tsbuildinfo
+vite.config.ts.timestamp-*.mjs
