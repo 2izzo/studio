@@ -15,10 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const entries = {
   main: resolve(__dirname, 'index.html'),
 
-  // chord-progressions/ has no pack-index page today — it predates the
-  // module-index pattern. The landing points directly at lesson 1 for this
-  // pack. Phase 2 todo: mint chord-progressions/index.html to match the
-  // other packs (and also fix the broken prereq link in modes/index.html).
+  'chord-progressions':    resolve(__dirname, 'chord-progressions/index.html'),
   'chord-progressions-01': resolve(__dirname, 'chord-progressions/01-lofi-lab.html'),
   'chord-progressions-02': resolve(__dirname, 'chord-progressions/02-swapper.html'),
   'chord-progressions-03': resolve(__dirname, 'chord-progressions/03-transformation.html'),

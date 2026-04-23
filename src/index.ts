@@ -43,9 +43,7 @@ const PACKS: readonly Pack[] = [
     blurb:
       'Learn to hear how chords pull on each other. Build a diatonic ear with labs, swaps, and transformations.',
     lessonCount: 4,
-    // No pack-index page for this pack yet — fall through to lesson 1.
-    // Phase 2 should mint chord-progressions/index.html.
-    packIndexHref: 'chord-progressions/01-lofi-lab.html',
+    packIndexHref: 'chord-progressions/index.html',
     lessonHrefs: [
       'chord-progressions/01-lofi-lab.html',
       'chord-progressions/02-swapper.html',
