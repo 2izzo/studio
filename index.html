@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rizzo Studio</title>
+<style>
+  :root {
+    --bg:         #1a1620;
+    --panel:      #241e2d;
+    --panel-2:    #1f1a28;
+    --panel-deep: #14111a;
+    --panel-hi:   #302438;
+    --ink:        #e8dfd3;
+    --muted:      #8a7f92;
+    --warm:       #d4a373;
+    --accent:     #c17a9c;
+    --green:      #8fb99c;
+    --grid:       #3a3244;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0 auto;
+    padding: 32px;
+    max-width: 1200px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+  }
+
+  a { color: var(--warm); text-decoration: none; }
+  a:hover { color: var(--accent); }
+
+  .hero {
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--grid);
+    margin-bottom: 28px;
+  }
+  .hero .kicker {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+  .hero h1 {
+    font-weight: 400;
+    font-size: 34px;
+    margin: 0 0 10px;
+    color: var(--warm);
+  }
+  .hero .sub {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 680px;
+    margin: 0 0 14px;
+  }
+  .hero .tally {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .pack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .pack-card {
+    background: var(--panel);
+    border: 1px solid var(--grid);
+    border-radius: 6px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: var(--ink);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+  }
+  .pack-card:hover {
+    border-color: var(--warm);
+    box-shadow: 0 0 24px rgba(212, 163, 115, 0.10);
+  }
+  .pack-card.complete { border-color: var(--green); }
+  .pack-card.complete:hover { box-shadow: 0 0 24px rgba(143, 185, 156, 0.15); }
+
+  .pack-card .kicker {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .pack-card h2 {
+    font-weight: 400;
+    font-size: 18px;
+    margin: 0;
+    color: var(--warm);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .pack-card.complete h2 { color: var(--green); }
+  .pack-card .blurb {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--grid);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .progress-row .progress-count strong { color: var(--warm); }
+  .pack-card.complete .progress-row .progress-count strong { color: var(--green); }
+  .progress-row .cta { color: var(--warm); }
+  .pack-card.complete .progress-row .cta { color: var(--green); }
+
+  .footer-note {
+    margin-top: 36px;
+    padding: 14px 18px;
+    background: var(--panel);
+    border: 1px solid var(--grid);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .footer-note code {
+    background: var(--panel-deep);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--warm);
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="kicker">Rizzo Studio</div>
+  <h1>Music theory you can hear.</h1>
+  <p class="sub">Five packs. Each pack is a short run of interactive lessons — click, listen, play along — that build one idea until you can hear it without thinking. Pick a pack to start or resume.</p>
+  <div id="tally" class="tally">20 lessons across 5 packs.</div>
+</section>
+
+<div id="packGrid" class="pack-grid">
+  <!-- rendered by src/index.ts; the noscript fallback below covers curl and no-JS browsers -->
+  <noscript>
+    <a class="pack-card" href="chord-progressions/index.html"><div class="kicker">Pack 1</div><h2>Chord Progressions</h2></a>
+    <a class="pack-card" href="modes/index.html"><div class="kicker">Pack 2</div><h2>Modes</h2></a>
+    <a class="pack-card" href="rhythm-and-pocket/index.html"><div class="kicker">Pack 3</div><h2>Rhythm &amp; Pocket</h2></a>
+    <a class="pack-card" href="melody-and-motifs/index.html"><div class="kicker">Pack 4</div><h2>Melody &amp; Motifs</h2></a>
+    <a class="pack-card" href="voice-leading/index.html"><div class="kicker">Pack 5</div><h2>Voice Leading</h2></a>
+  </noscript>
+</div>
+
+<div class="footer-note">
+  Progress lives in your browser's <code>localStorage</code>. Each pack stores its own key (<code>rizzo-studio-&lt;pack&gt;</code>). Use the "reset module progress" link inside a pack to clear just that pack, or clear all site data to reset everything.
+</div>
+
+<script type="module" src="/src/index.ts"></script>
+
+</body>
+</html>
