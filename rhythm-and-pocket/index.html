@@ -117,7 +117,7 @@
   .reset-link:hover { color: var(--muted); }
 </style>
 </head>
-<body>
+<body data-storage-key="rizzo-studio-rhythm">
 
 <a href="../index.html" style="font-size:11px; margin-bottom:16px; display:inline-block;">← all packs</a>
 <div class="header">
@@ -263,82 +263,7 @@
   </div>
 </div>
 
-<script>
-const PROGRESS_KEY = 'rizzo-studio-rhythm';
-const LESSONS = [1, 2, 3, 4];
-
-function loadProgress() {
-  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; }
-  catch (e) { return {}; }
-}
-function saveProgress(p) { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); }
-
-function render() {
-  const p = loadProgress();
-  let completed = 0;
-  let firstIncomplete = null;
-
-  LESSONS.forEach(n => {
-    const el = document.getElementById('lesson' + n);
-    el.classList.remove('complete', 'current');
-
-    const isComplete = p['lesson' + n] === 'complete';
-    if (isComplete) {
-      completed++;
-      el.classList.add('complete');
-      el.querySelector('.lesson-action').textContent = 'review';
-    } else if (!firstIncomplete) {
-      firstIncomplete = n;
-      el.classList.add('current');
-      el.querySelector('.lesson-action').textContent = '▶ open';
-    } else {
-      el.querySelector('.lesson-action').textContent = '▶ open';
-    }
-  });
-
-  document.getElementById('completedCount').textContent = completed;
-  document.getElementById('progressFill').style.width = (completed / 4 * 100) + '%';
-
-  const gateReady = p.lesson1 === 'complete' && p.lesson2 === 'complete' && p.lesson3 === 'complete';
-  const capstone = document.getElementById('capstone');
-  const capText = document.getElementById('capstoneText');
-  const capTitle = document.getElementById('capstoneTitle');
-  if (p.lesson4 === 'complete') {
-    capstone.classList.remove('locked');
-    capTitle.textContent = '✓ Module Complete';
-    capText.innerHTML = `You passed the Snap Quiz — best: <strong style="color:var(--green)">${p.quizBest || '?'}/10</strong>. Retake anytime.`;
-    document.getElementById('capstoneBtn').textContent = 'Retake Quiz';
-  } else if (gateReady) {
-    capstone.classList.remove('locked');
-    capText.textContent = 'All three lessons walked. The Snap Quiz is unlocked.';
-  } else {
-    capstone.classList.add('locked');
-    const need = LESSONS.slice(0, 3).filter(n => p['lesson' + n] !== 'complete');
-    capText.textContent = `Complete lesson${need.length > 1 ? 's' : ''} ${need.join(', ')} to unlock the Snap Quiz.`;
-  }
-
-  const quizStats = document.getElementById('quizStats');
-  if (p.quizBest != null) {
-    quizStats.textContent = `Capstone best: ${p.quizBest}/10`;
-  }
-
-  document.querySelectorAll('#skillList li').forEach(li => {
-    const requires = parseInt(li.dataset.unlock, 10);
-    if (p['lesson' + requires] === 'complete') li.classList.add('unlocked');
-    else li.classList.remove('unlocked');
-  });
-}
-
-document.getElementById('resetLink').addEventListener('click', () => {
-  if (confirm('Reset module progress? This clears completed lessons and quiz scores.')) {
-    localStorage.removeItem(PROGRESS_KEY);
-    render();
-  }
-});
-
-render();
-window.addEventListener('focus', render);
-</script>
+<script type="module" src="/src/pack-index-entry.ts"></script>
 
 </body>
 </html>
