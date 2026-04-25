@@ -106,6 +106,17 @@
     outline: 1px solid var(--ink);
     outline-offset: 1px;
   }
+  /* Swing visualization — the off-beat hat cells lean late, encroaching on the next cell */
+  .cell.swung {
+    transform: translateX(38%);
+    z-index: 2;
+  }
+  .cell.hit-hat.swung.on {
+    box-shadow: 0 0 12px rgba(143,185,156,0.55), -3px 0 8px rgba(193,122,156,0.35);
+    border-right: 1px dashed var(--accent);
+  }
+  /* Smooth the layout transition when grids swap between duple (16) and triplet (12) */
+  .cells { transition: grid-template-columns 0.18s ease; }
 
   /* HEAD / FOOT NAV + complete banner */
   .lesson-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; font-size: 12px; color: var(--muted); }
@@ -213,19 +224,39 @@
 
 <script>
 // ============================================================
-// PATTERN DATA — one bar of 16 sixteenth-note cells
-// (the grid is a visualization; actual scheduling is per-feel below)
+// PATTERN DATA
+// AUDIO scheduling: kick/snare run on a 16th-note grid. Hats run per-feel.
+// VISUAL scheduling: the grid swaps between a 16-cell duple layout
+// (straight/swing) and a 12-cell triplet layout (shuffle).
 // ============================================================
-const KICK_HITS  = [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]; // 1 and 3
-const SNARE_HITS = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]; // 2 and 4
-// hat hits get rebuilt per feel — see pickHatHits()
+const KICK_HITS  = [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]; // audio: 1 and 3
+const SNARE_HITS = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]; // audio: 2 and 4
+
+// Visual representations — these only drive the displayed grid, not audio.
+const VISUAL = {
+  duple: {
+    cellCount: 16,
+    kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+  },
+  triplet: {
+    cellCount: 12,
+    kick:  [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], // beats 1 and 3 in triplet space
+    snare: [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0]  // beats 2 and 4 in triplet space
+  }
+};
+
+// Shuffle hat pattern in triplet 8th space (12 slots).
+// Hits land on the 1st and 3rd triplet of each beat: "DA - da, DA - da".
+const SHUFFLE_HAT_PATTERN = [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1];
 
 const FEELS = {
   straight: {
     label: 'STRAIGHT',
     color: 'var(--warm)',
     blurb: 'Even 8ths. The hat is a metronome: <em>tick tick tick tick</em>. Every subdivision gets equal weight. The tightest, squarest, most urgent feel. Most modern rock and pop lives here.',
-    // 8 hat hits, evenly spaced, at every other sixteenth cell
+    gridLayout: 'duple',
+    // 8 hat hits, evenly spaced, on every other sixteenth cell
     hatCells: [0, 2, 4, 6, 8, 10, 12, 14],
     swing: 0,
     hatDivision: '8n'
@@ -234,8 +265,11 @@ const FEELS = {
     label: 'SWING',
     color: 'var(--accent)',
     blurb: 'Uneven 8ths — the "and" of each beat sits late, closer to the next downbeat. <em>Long short long short.</em> The feel of jazz, hip-hop that breathes, neo-soul. A Tribe Called Quest, D\'Angelo — everything human and pocketed.',
-    // Same 8 cells, but with Tone.Transport.swing the second 8th gets pushed late
+    gridLayout: 'duple',
+    // Same 8 cells as straight; the off-beat cells are visually shifted late
+    // (`swungCells`) AND audibly delayed (Tone.Transport.swing).
     hatCells: [0, 2, 4, 6, 8, 10, 12, 14],
+    swungCells: [2, 6, 10, 14],
     swing: 0.58,
     hatDivision: '8n'
   },
@@ -243,11 +277,12 @@ const FEELS = {
     label: 'SHUFFLE',
     color: 'var(--green)',
     blurb: 'Triplet 8ths. Divide each beat into three instead of two. The hat rides on 1 and on the last third of the beat — <em>DA - da, DA - da</em>. Blues, Motown, shuffle-rock. Your foot will tap three-against-the-beat without asking.',
-    // Triplet grid doesn't map cleanly to 16 cells — visualize as 1st-and-3rd-of-three
-    // In 4 beats × 3 triplets = 12 slots. For the visual grid, approximate on the 16-cell row.
-    hatCells: [0, 3, 4, 7, 8, 11, 12, 15], // "and a 1, and a 2..." — triplet approximation
+    gridLayout: 'triplet',
+    // Real triplet hat pattern: 8 hits on a 12-cell triplet grid
+    hatCells: [0, 2, 3, 5, 6, 8, 9, 11],
     swing: 0,
-    hatDivision: '8t' // triplet 8ths in Tone.js notation
+    hatDivision: '8t', // triplet 8ths in Tone.js notation
+    useShufflePattern: true
   }
 };
 
@@ -263,40 +298,55 @@ let kick, snare, hat, rhodes, master;
 let drumLoop;
 
 // ============================================================
-// BUILD GRID CELLS
+// BUILD GRID CELLS — supports duple (16-cell) and triplet (12-cell) layouts
 // ============================================================
-function buildLane(containerId, hits, hitClass) {
+function buildLane(containerId, hits, hitClass, opts = {}) {
+  const cellCount = opts.cellCount || 16;
+  const swungCells = opts.swungCells || [];
   const el = document.getElementById(containerId);
   el.innerHTML = '';
-  for (let i = 0; i < 16; i++) {
+  el.style.gridTemplateColumns = `repeat(${cellCount}, 1fr)`;
+  const beatStride = cellCount / 4; // 4 beats per bar in either layout
+  for (let i = 0; i < cellCount; i++) {
     const c = document.createElement('div');
     c.className = 'cell ' + hitClass;
-    if (i % 4 === 0) c.classList.add('beat1');
+    if (i % beatStride === 0) c.classList.add('beat1');
     if (hits[i]) c.classList.add('on');
+    if (swungCells.includes(i)) c.classList.add('swung');
     c.dataset.step = i;
     el.appendChild(c);
   }
 }
 
 function redrawGrid() {
-  buildLane('kickLane',  KICK_HITS,  'hit-kick');
-  buildLane('snareLane', SNARE_HITS, 'hit-snare');
-  // hat lane reflects current feel
-  const hatRow = new Array(16).fill(0);
-  FEELS[currentFeel].hatCells.forEach(c => { hatRow[c] = 1; });
-  buildLane('hatLane', hatRow, 'hit-hat');
+  const feel = FEELS[currentFeel];
+  const layout = feel.gridLayout || 'duple';
+  const v = VISUAL[layout];
+  const swungCells = feel.swungCells || [];
+
+  buildLane('kickLane',  v.kick,  'hit-kick',  { cellCount: v.cellCount });
+  buildLane('snareLane', v.snare, 'hit-snare', { cellCount: v.cellCount });
+
+  const hatRow = new Array(v.cellCount).fill(0);
+  feel.hatCells.forEach(c => { hatRow[c] = 1; });
+  buildLane('hatLane', hatRow, 'hit-hat', { cellCount: v.cellCount, swungCells });
 }
 
 // ============================================================
 // FLASH CELL ON HIT — ties visual to audio
+// Maps the 16-step audio position into the current visual layout
+// (16 cells for duple, 12 for triplet).
 // ============================================================
-function flashStep(step) {
-  // clear previous flash
+function flashStep(audioStep) {
   document.querySelectorAll('.cell.flash').forEach(el => el.classList.remove('flash'));
-  // flash the current step column
-  if (step < 0 || step > 15) return;
+  if (audioStep < 0 || audioStep > 15) return;
+
+  const layout = FEELS[currentFeel].gridLayout || 'duple';
+  const cellCount = VISUAL[layout].cellCount;
+  const visualStep = Math.floor((audioStep / 16) * cellCount);
+
   ['kickLane', 'snareLane', 'hatLane'].forEach(id => {
-    const cell = document.querySelector(`#${id} .cell[data-step="${step}"]`);
+    const cell = document.querySelector(`#${id} .cell[data-step="${visualStep}"]`);
     if (cell) cell.classList.add('flash');
   });
 }
@@ -372,15 +422,27 @@ function scheduleLoop() {
 }
 
 let hatLoop;
+function buildHatLoop(feel) {
+  // Shuffle uses a Sequence over a 12-slot triplet pattern so the hats land
+  // on "1 and the last triplet" of each beat — the actual shuffle feel —
+  // instead of firing on every triplet 8th (12 hits per bar).
+  if (feel.useShufflePattern) {
+    return new Tone.Sequence((time, hit) => {
+      if (hit) hat.triggerAttackRelease('16n', time, 0.35);
+    }, SHUFFLE_HAT_PATTERN, '8t');
+  }
+  return new Tone.Loop((time) => {
+    hat.triggerAttackRelease('16n', time, 0.35);
+  }, feel.hatDivision);
+}
+
 function scheduleHats() {
   if (hatLoop) { hatLoop.dispose(); hatLoop = null; }
   const feel = FEELS[currentFeel];
   Tone.Transport.swing = feel.swing;
   Tone.Transport.swingSubdivision = '8n';
 
-  hatLoop = new Tone.Loop((time) => {
-    hat.triggerAttackRelease('16n', time, 0.35);
-  }, feel.hatDivision).start(0);
+  hatLoop = buildHatLoop(feel).start(0);
 }
 
 // ============================================================
@@ -389,21 +451,26 @@ function scheduleHats() {
 function setFeel(feelKey) {
   if (!FEELS[feelKey]) return;
   currentFeel = feelKey;
+  const feel = FEELS[feelKey];
   // buttons
   document.querySelectorAll('.feel-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.feel === feelKey);
   });
   // blurb
-  document.getElementById('feelBlurb').innerHTML = FEELS[feelKey].blurb;
-  // grid
+  document.getElementById('feelBlurb').innerHTML = feel.blurb;
+  // grid (swaps duple ↔ triplet layout based on the feel)
   redrawGrid();
-  // if we're playing, reschedule the hat loop live
+  // status text
+  if (isPlaying && statusLbl) {
+    statusLbl.textContent = 'playing · ' + feel.label.toLowerCase();
+  }
+  // if we're playing, reschedule the hat loop quantized to the next beat
+  // so the new subdivision stays in phase with the kick/snare bar.
   if (isPlaying) {
-    Tone.Transport.swing = FEELS[feelKey].swing;
+    Tone.Transport.swing = feel.swing;
     if (hatLoop) { hatLoop.dispose(); hatLoop = null; }
-    hatLoop = new Tone.Loop((time) => {
-      hat.triggerAttackRelease('16n', time, 0.35);
-    }, FEELS[feelKey].hatDivision).start('+0.01');
+    const startAt = Tone.Transport.nextSubdivision('4n');
+    hatLoop = buildHatLoop(feel).start(startAt);
   }
 }
 
