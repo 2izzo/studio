@@ -423,15 +423,24 @@ function scheduleLoop() {
 
 let hatLoop;
 function buildHatLoop(feel) {
-  // Shuffle uses a Sequence over a 12-slot triplet pattern so the hats land
-  // on "1 and the last triplet" of each beat — the actual shuffle feel —
-  // instead of firing on every triplet 8th (12 hits per bar).
+  // Shuffle: triplet 8th Loop with an internal step counter that gates
+  // hits to the 1st and 3rd triplet of each beat — "DA - da, DA - da" —
+  // instead of firing on every triplet 8th (which would be 12 buzzy
+  // hits/bar). Using Loop+counter rather than Tone.Sequence because
+  // Sequence's default `humanize`/event semantics had it silently
+  // dropping triggers in some setups.
   if (feel.useShufflePattern) {
-    return new Tone.Sequence((time, hit) => {
-      if (hit) hat.triggerAttackRelease('16n', time, 0.35);
-    }, SHUFFLE_HAT_PATTERN, '8t');
+    let step = 0;
+    return new Tone.Loop((time) => {
+      if (!hat) return; // guard against late audio init
+      if (SHUFFLE_HAT_PATTERN[step % SHUFFLE_HAT_PATTERN.length]) {
+        hat.triggerAttackRelease('16n', time, 0.35);
+      }
+      step++;
+    }, '8t');
   }
   return new Tone.Loop((time) => {
+    if (!hat) return;
     hat.triggerAttackRelease('16n', time, 0.35);
   }, feel.hatDivision);
 }
